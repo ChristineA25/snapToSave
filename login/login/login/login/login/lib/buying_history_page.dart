@@ -113,6 +113,11 @@ class _BuyingHistoryPageState extends State<BuyingHistoryPage> {
   @override
   void initState() {
     super.initState();
+
+    // ✅ initialize immediately
+    _future = fetchPurchases(widget.userId);
+
+    // ✅ then run your async bootstrap
     _initData();
   }
   

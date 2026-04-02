@@ -428,13 +428,18 @@ String iso2ToFlagEmoji(String iso2) {
 }
 
   // 2. SEARCH ALGORITHM (Updated with Null Safety Fixes)
-  Future<Map<String, dynamic>?> _findUserByAnswers(List<Map<String, String>> provided) async {
+  Future<Map<String, dynamic>?> _findUserByAnswers(
+      List<Map<String, String>> provided) async {
     int currentPage = 1;
     bool hasMore = true;
 
     while (hasMore) {
-      final response = await http.get(Uri.parse(
-          'https://nodejs-production-f031.up.railway.app/api/admin/loginTable?page=$currentPage&pageSize=100'));
+      final response = await http.get(
+        Uri.parse(
+          'https://nodejs-production-f031.up.railway.app/api/admin/loginTable'
+          '?page=$currentPage&pageSize=100',
+        ),
+      );
 
       if (response.statusCode != 200) break;
 
@@ -442,34 +447,64 @@ String iso2ToFlagEmoji(String iso2) {
       List<dynamic> rows = data['rows'] ?? [];
 
       for (var row in rows) {
-        // 1. Map the DB row safely into a list of pairs
-        // We use .toString() and ?? '' to ensure we never call .trim() on null
-        List<Map<String, String>> dbPairs = [
-          {'q': (row['secuQuestion1'] ?? '').toString(), 'a': (row['secuAns1'] ?? '').toString()},
-          {'q': (row['secuQuestion2'] ?? '').toString(), 'a': (row['secuAns2'] ?? '').toString()},
-          {'q': (row['secuQuestion3'] ?? '').toString(), 'a': (row['secuAns3'] ?? '').toString()},
+        // Map DB questions safely
+        final List<Map<String, String>> dbPairs = [
+          {
+            'q': (row['secuQuestion1'] ?? '').toString(),
+            'a': (row['secuAns1'] ?? '').toString(),
+          },
+          {
+            'q': (row['secuQuestion2'] ?? '').toString(),
+            'a': (row['secuAns2'] ?? '').toString(),
+          },
+          {
+            'q': (row['secuQuestion3'] ?? '').toString(),
+            'a': (row['secuAns3'] ?? '').toString(),
+          },
         ];
 
-        // 2. Check if all 3 provided Q/A pairs exist in the DB record (Order Independent)
         int matches = 0;
+
         for (var p in provided) {
-          bool foundMatch = dbPairs.any((db) => 
-            // Use ! on p['q'] because we know 'provided' is a List of non-null Map values
-            db['q']!.trim().toLowerCase() == p['q']!.trim().toLowerCase() && 
-            db['a']!.trim().toLowerCase() == p['a']!.trim().toLowerCase()
-          );
+          final bool foundMatch = dbPairs.any((db) =>
+              db['q']!.trim().toLowerCase() ==
+                  p['q']!.trim().toLowerCase() &&
+              db['a']!.trim().toLowerCase() ==
+                  p['a']!.trim().toLowerCase());
+
           if (foundMatch) matches++;
         }
 
-        if (matches == 3) return row; // Found the user!
+        if (matches == 3) {
+          /// ✅ MATCH FOUND — PRINT ACCOUNT DETAILS
+          debugPrint('✅ [ACCOUNT FOUND]');
+          debugPrint('UserID: ${row['userID']}');
+          debugPrint('Username: ${row['username']}');
+          debugPrint('Email: ${row['email']}');
+          debugPrint(
+              'Phone: ${row['phone_country_code'] ?? ''}${row['phone_number'] ?? ''}');
+          debugPrint('Monthly Salary: ${row['monthlySalary']}');
+
+          debugPrint('--- Matched Questions ---');
+          for (final p in provided) {
+            debugPrint('Q: ${p['q']} | A: ${p['a']}');
+          }
+          debugPrint('--------------------------');
+
+          return row; // ✅ Return matched user
+        }
       }
 
-      if (rows.isEmpty || (data['total'] != null && currentPage * 100 >= data['total'])) {
+      // Pagination check
+      if (rows.isEmpty ||
+          (data['total'] != null && currentPage * 100 >= data['total'])) {
         hasMore = false;
       } else {
         currentPage++;
       }
     }
+
+    debugPrint('❌ [NO MATCH FOUND]');
     return null;
   }
 
