@@ -1,0 +1,432 @@
+train,label
+toilet tissue,household
+long-grain rice,food
+chicken,food
+clothes wash pod,household
+wash up liquid,household
+bottle,household
+broccoli,food
+fork,household
+chocolate,snack
+ice cream,snack
+cake ,snack
+bread,food
+basmati rice,food
+cheese,food
+blueberry,fruit
+banana,fruit
+can,snack
+fries,snack
+cola,snack
+beef,food
+hand wash,household
+tea,household
+cucumber,food
+pak choi,food
+cup,household
+backpack,object
+frying pan,household
+baby spinach,food
+spinach,food
+toilet tissue paper,household
+knife,household
+carrot,food
+laundry detergent,household
+fabric softener,household
+dish soap,household
+sponge,household
+scouring pad,household
+paper towels,household
+napkins,household
+trash bags,household
+all-purpose cleaner,household
+glass cleaner,household
+disinfectant spray,household
+toilet bowl cleaner,household
+mop,household
+broom,household
+dustpan,household
+vacuum bag,household
+light bulb,household
+batteries,household
+aluminum foil,household
+plastic wrap,household
+parchment paper,household
+ziploc bags,household
+hand soap,household
+body wash,household
+shampoo,household
+conditioner,household
+toothpaste,household
+mouthwash,household
+floss,household
+razors,household
+shaving cream,household
+deodorant,household
+lotion,household
+sunscreen,household
+cotton swabs,household
+cotton balls,household
+rubbing alcohol,household
+hydrogen peroxide,household
+band-aids,household
+tissues,household
+toilet paper,household
+paper plates,household
+plastic cups,household
+silverware,household
+serving spoon,household
+spatula,household
+whisk,household
+ladle,household
+tongs,household
+grater,household
+peeler,household
+can opener,household
+corkscrew,household
+measuring cups,household
+mixing bowl,household
+colander,household
+cutting board,household
+baking sheet,household
+muffin tin,household
+pot,household
+pan,household
+lid,household
+kettle,household
+toaster,household
+blender,household
+microwave,household
+coffee maker,household
+iron,household
+ironing board,household
+hangers,household
+laundry basket,household
+drying rack,household
+dust cloth,household
+microfiber cloth,household
+scrub brush,household
+bucket,household
+plunger,household
+bath mat,household
+shower curtain,household
+towel,household
+washcloth,household
+pillowcase,household
+sheets,household
+blanket,household
+comforter,household
+curtains,household
+rug,household
+doormat,household
+picture frame,household
+candle,household
+vase,household
+clock,household
+extension cord,household
+surge protector,household
+flashlight,household
+screwdriver,household
+hammer,household
+pliers,household
+tape measure,household
+duct tape,household
+masking tape,household
+super glue,household
+chicken breast,food
+ground beef,food
+pork chops,food
+bacon,food
+turkey,food
+ham,food
+salmon fillet,food
+shrimp,food
+cod,food
+tuna fish,food
+eggs,food
+milk,food
+butter,food
+yogurt,food
+sour cream,food
+cottage cheese,food
+cheddar cheese,food
+mozzarella,food
+parmesan,food
+cream cheese,food
+tofu,food
+white rice,food
+brown rice,food
+quinoa,food
+oats,food
+all-purpose flour,food
+sugar,food
+brown sugar,food
+honey,food
+maple syrup,food
+olive oil,food
+vegetable oil,food
+coconut oil,food
+vinegar,food
+soy sauce,food
+ketchup,food
+mustard,food
+mayonnaise,food
+hot sauce,food
+salsa,food
+black beans,food
+kidney beans,food
+chickpeas,food
+lentils,food
+spaghetti,food
+penne,food
+macaroni,food
+ramen noodles,food
+bread crumbs,food
+yeast,food
+baking powder,food
+baking soda,food
+salt,food
+black pepper,food
+garlic powder,food
+onion powder,food
+cinnamon,food
+oregano,food
+basil,food
+thyme,food
+rosemary,food
+paprika,food
+cumin,food
+chili powder,food
+turmeric,food
+ginger,food
+vanilla extract,food
+chicken broth,food
+beef broth,food
+vegetable broth,food
+tomato sauce,food
+tomato paste,food
+diced tomatoes,food
+corn,food
+peas,food
+green beans,food
+carrots,food
+potatoes,food
+onions,food
+garlic,food
+kale,food
+lettuce,food
+tomatoes,food
+cucumbers,food
+bell peppers,food
+cauliflower,food
+zucchini,food
+eggplant,food
+asparagus,food
+mushrooms,food
+celery,food
+avocado,food
+sweet potato,food
+cabbage,food
+brussels sprouts,food
+potato chips,snack
+tortilla chips,snack
+pretzels,snack
+popcorn,snack
+corn chips,snack
+cheese puffs,snack
+crackers,snack
+rice cakes,snack
+granola bars,snack
+protein bars,snack
+trail mix,snack
+peanuts,snack
+almonds,snack
+cashews,snack
+pistachios,snack
+walnuts,snack
+sunflower seeds,snack
+pumpkin seeds,snack
+beef jerky,snack
+fruit snacks,snack
+gummy bears,snack
+chocolate bar,snack
+dark chocolate,snack
+milk chocolate,snack
+hard candy,snack
+lollipops,snack
+chewing gum,snack
+cookies,snack
+oreos,snack
+chocolate chip cookies,snack
+oatmeal cookies,snack
+brownies,snack
+muffins,snack
+donuts,snack
+pastries,snack
+croissants,snack
+pudding,snack
+gelatin,snack
+sorbet,snack
+frozen yogurt,snack
+popsicles,snack
+beef sticks,snack
+cheese sticks,snack
+string cheese,snack
+hummus,snack
+guacamole,snack
+pita chips,snack
+soda,snack
+diet soda,snack
+sparkling water,snack
+iced tea,snack
+lemonade,snack
+energy drink,snack
+sports drink,snack
+fruit juice,snack
+apple juice,snack
+orange juice,snack
+grape juice,snack
+cranberry juice,snack
+root beer,snack
+ginger ale,snack
+tonic water,snack
+club soda,snack
+smoothie,snack
+milkshake,snack
+hot cocoa,snack
+coffee beans,snack
+ground coffee,snack
+tea bags,snack
+herbal tea,snack
+red apple,fruit
+granny smith apple,fruit
+fuji apple,fruit
+gala apple,fruit
+navel orange,fruit
+valencia orange,fruit
+mandarin,fruit
+clementine,fruit
+tangerine,fruit
+grapefruit,fruit
+lemon,fruit
+lime,fruit
+cavendish banana,fruit
+plantain,fruit
+red grapes,fruit
+green grapes,fruit
+black grapes,fruit
+strawberries,fruit
+blueberries,fruit
+raspberries,fruit
+blackberries,fruit
+cranberries,fruit
+cherries,fruit
+peaches,fruit
+nectarines,fruit
+plums,fruit
+apricots,fruit
+pears,fruit
+kiwi,fruit
+mango,fruit
+pineapple,fruit
+papaya,fruit
+honeydew melon,fruit
+cantaloupe,fruit
+watermelon,fruit
+pomegranate,fruit
+figs,fruit
+dates,fruit
+coconut,fruit
+dragon fruit,fruit
+star fruit,fruit
+passion fruit,fruit
+lychee,fruit
+guava,fruit
+persimmon,fruit
+quince,fruit
+rhubarb,fruit
+dried apricots,fruit
+raisins,fruit
+dried cranberries,fruit
+prunes,fruit
+goji berries,fruit
+laptop,object
+desktop computer,object
+monitor,object
+keyboard,object
+mouse,object
+headphones,object
+earbuds,object
+smartphone,object
+tablet,object
+charger,object
+power bank,object
+usb drive,object
+printer,object
+scanner,object
+camera,object
+tripod,object
+microphone,object
+speaker,object
+remote control,object
+television,object
+game console,object
+controller,object
+book,object
+notebook,object
+journal,object
+pen,object
+pencil,object
+highlighter,object
+marker,object
+eraser,object
+sharpener,object
+stapler,object
+paper clips,object
+binder,object
+folder,object
+envelope,object
+scissors,object
+ruler,object
+calculator,object
+desk,object
+office chair,object
+filing cabinet,object
+bookshelf,object
+lamp,object
+handbag,object
+wallet,object
+purse,object
+suitcase,object
+umbrella,object
+sunglasses,object
+eyeglasses,object
+watch,object
+jewelry,object
+keys,object
+keychain,object
+mirror,object
+picture,object
+poster,object
+calendar,object
+map,object
+globe,object
+magnifying glass,object
+compass,object
+bicycle,object
+helmet,object
+skateboard,object
+yoga mat,object
+dumbbell,object
+jump rope,object
+football,object
+basketball,object
+soccer ball,object
+baseball,object
+tennis racket,object
+guitar,object
+keyboard instrument,object
+violin,object
+flute,object
+trumpet,object
+drums,object

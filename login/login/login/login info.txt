@@ -1,0 +1,62 @@
+sameEmail2@11feb261710.com
+BGuE8yy8ZRMRi9XeSJcODwKKWLTvs0a+7Nj/tjvSgPg=
+
++44 012456789
+Ypkcccsa7iywe0+XUWf3GBbobKTFAp2iUi1IRM0NnQ4=
+
+Chris@11feb261710
+
+Same@password11feb261710
+$2a$12$WE7Z3w9GPTtkAzVlgMWPvuVJNoAwL80mImLTPE.dNiGuaW3VpWef2
+$2a$12$HrP9BedtFiJPRjIb6Eat3.8cpG3wySFlpxkCgvJrHjai5l/s6..4e
+
+
+
+
+testingDel9(
+testingDel9(
+
+testSettingAdd!1
+testSettingAdd!1
+
+testEmpAccSal@2
+testEmpAccSal@2
+
+testEmpAccSal@3
+testEmpAccSal@3
+
+testRan?3
+testRan?3
+mango, energy bar, ginger
+
+testAccRecover@email.com
+testAccRecover@email.com1
+
+testEmp1!
+testEmp1!
+
+HKphone@9
+HKphone@9
+
+forgetPass!1
+168961
+
++84 4567890123
+phone0)OHViet
+
+testReturn1!
+testes
+
+testForget!2
+testForget!2
+black coffee
+clock
+jewish
+
+ curl -X PUT https://nodejs-production-f031.up.railway.app/api/user/update-identity -H "Content-Type: application/json" -d '{
+  "userID": "861328430740",
+  "phone_country_code": null,
+  "phone_number": null, "username": null, "email": "changeToEmail@test.com", "password": "PasswordChanged"
+}'
+{"ok":true,"message":"Identity updated"}
+
