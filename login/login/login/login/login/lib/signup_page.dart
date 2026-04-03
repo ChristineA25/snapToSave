@@ -22,6 +22,8 @@ import 'package:http/http.dart' as http;
 import 'package:characters/characters.dart';
 import 'api_guard.dart'; // requireOnline + OfflineException
 
+import 'package:dropdown_search/dropdown_search.dart';
+
 enum IdentifierType { username, email, phone }
 
 // --- API base (Railway) ---
@@ -948,39 +950,57 @@ class _SignupPageState extends State<SignupPage> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                DropdownButtonFormField<PhoneRegion>(
-                                  value: _selectedRegion,
-                                  isExpanded: true,
-                                  decoration: InputDecoration(
-                                    labelText: 'Country',
-                                    prefixIcon: const Icon(Icons.flag_outlined),
-                                    filled: true,
-                                    fillColor: theme.colorScheme.surface,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    helperText: _regionsError,
-                                  ),
-                                  items: _regions.map((r) {
+                                
+                                DropdownSearch<PhoneRegion>(
+                                  items: (filter, loadProps) => _regions,
+                                  selectedItem: _selectedRegion,
+
+                                  compareFn: (a, b) => a.iso2 == b.iso2,
+
+                                  itemAsString: (r) {
                                     final flag = iso2ToFlagEmoji(r.iso2);
-                                    final prettyCode = r.displayCode ?? r.code;
-                                    final label =
-                                        '${flag.isNotEmpty ? '$flag ' : ''}${r.name} ($prettyCode)';
-                                    return DropdownMenuItem(value: r, child: Text(label));
-                                  }).toList(),
-                                  onChanged: (r) {
-                                    setState(() {
-                                      _selectedRegion = r;
-                                      if (r != null) _countryCodeCtrl.text = r.code;
-                                      // NEW: when switching country, clear the local number
-                                      _identifierCtrl.clear();
-                                    });
+                                    final pretty = r.displayCode ?? r.code;
+                                    return '${flag.isNotEmpty ? '$flag ' : ''}${r.name} ($pretty)';
                                   },
+
+                                  decoratorProps: DropDownDecoratorProps(
+                                    decoration: InputDecoration(
+                                      labelText: 'Country',
+                                      prefixIcon: const Icon(Icons.flag_outlined),
+                                      helperText: _regionsError,
+                                      filled: true,
+                                      fillColor: theme.colorScheme.surface,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+
+                                  popupProps: const PopupProps.menu(
+                                    showSearchBox: true,
+                                    searchFieldProps: TextFieldProps(
+                                      decoration: InputDecoration(
+                                        hintText: 'Search country or code…',
+                                      ),
+                                    ),
+                                  ),
+
                                   validator: (r) {
                                     if (_idType != IdentifierType.phone) return null;
                                     return r == null ? 'Choose a country' : null;
                                   },
+
+                                  onChanged: (r) {
+                                    setState(() {
+                                      _selectedRegion = r;
+                                      if (r != null) {
+                                        _countryCodeCtrl.text = r.code;
+                                        _identifierCtrl.clear();
+                                      }
+                                    });
+                                  },
                                 ),
+
                                 const SizedBox(height: 8),
                                 _identifierField(theme),
                               ],
