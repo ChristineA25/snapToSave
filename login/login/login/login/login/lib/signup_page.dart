@@ -444,11 +444,6 @@ class _SignupPageState extends State<SignupPage> {
               local: idValue,
             );
             if (e164ForPhone == null) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Phone number is invalid for the selected country.')),
-                );
-              }
               debugPrint('[SUBMIT][PHONE] server validation FAILED for iso2Raw=${selected.iso2} local="$idValue"');
               setState(() => _isSubmitting = false);
               //return; // <<< UPDATED: block submit when invalid
