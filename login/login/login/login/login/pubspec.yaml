@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  countries_utils: ^1.0.0
+
   dropdown_search: ^6.0.1
 
   charts_flutter_updated: ^0.16.0

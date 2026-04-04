@@ -1,4 +1,3 @@
-
 // lib/signup_page.dart
 // Updates:
 // 1) Password validator shows missing bullet requirements (uppercase, lowercase, number, symbol, >= 8).
@@ -23,6 +22,8 @@ import 'package:characters/characters.dart';
 import 'api_guard.dart'; // requireOnline + OfflineException
 
 import 'package:dropdown_search/dropdown_search.dart';
+
+import 'package:countries_utils/countries_utils.dart';
 
 enum IdentifierType { username, email, phone }
 
@@ -129,6 +130,35 @@ class _SignupPageState extends State<SignupPage> {
   List<PhoneRegion> _regions = [];
   PhoneRegion? _selectedRegion;
   String? _regionsError;
+
+  Future<String?> iso2ToIso3Lower(String iso2) async {
+    final code = iso2.trim().toUpperCase();
+    if (code.length != 2) return null;
+
+    final uri = Uri.parse('https://restcountries.com/v3.1/alpha/$code');
+
+    try {
+      final res = await http
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 8));
+
+      if (res.statusCode != 200) {
+        debugPrint('[ISO MAP] HTTP ${res.statusCode} for $code');
+        return null;
+      }
+
+      final List<dynamic> data = jsonDecode(res.body);
+      if (data.isEmpty) return null;
+
+      final cca3 = data.first['cca3'];
+      if (cca3 == null || cca3 is! String) return null;
+
+      return cca3.toLowerCase();
+    } catch (e) {
+      debugPrint('[ISO MAP] Error converting $code → ISO3: $e');
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -290,6 +320,42 @@ class _SignupPageState extends State<SignupPage> {
     return String.fromCharCodes([a, b]);
   }
 
+  
+  Future<void> _updateDisplayTimeAfterSignup({
+    required String userId,
+    required PhoneRegion region,
+  }) async {
+    final iso3Lower = await iso2ToIso3Lower(region.iso2);
+
+    if (iso3Lower == null) {
+      debugPrint('[DISPLAY_TIME] ISO2→ISO3 failed for ${region.iso2}');
+      return;
+    }
+
+    final uri = Uri.parse('$kApiSignupBase/api/user/displayTime');
+
+    final payload = {
+      'userID': userId,
+      'displayTime': iso3Lower, // ✅ identical to Settings
+    };
+
+    debugPrint('[DISPLAY_TIME] PUT $uri');
+    debugPrint('[DISPLAY_TIME] payload: $payload');
+
+    try {
+      final res = await http.put(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      debugPrint('[DISPLAY_TIME] HTTP ${res.statusCode}');
+      debugPrint('[DISPLAY_TIME] BODY ${res.body}');
+    } catch (e) {
+      debugPrint('[DISPLAY_TIME] ERROR $e');
+    }
+  }
+
   Future<void> _loadRegions() async {
     try {
       final uri = Uri.parse('$kApiBase/phone/regions');
@@ -417,12 +483,10 @@ class _SignupPageState extends State<SignupPage> {
       debugPrint('[SUBMIT] form validation failed on client');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please fix the highlighted fields (security answers included).'),
-          ),
+          const SnackBar(content: Text('Please fix the highlighted fields.')),
         );
       }
-      return; // <<< block submission when the form is invalid
+      return;
     }
 
     try {
@@ -435,112 +499,62 @@ class _SignupPageState extends State<SignupPage> {
           final selected = _selectedRegion;
           final idValue = _identifierCtrl.text.trim();
 
-          // If phone, perform server-side validation and capture E.164
           if (_idType == IdentifierType.phone && selected != null) {
-            // Sanitize iso2: ensure A-Z only (e.g., convert 🇬🇧 -> GB)
             final sanitizedIso2 = _toAlpha2(selected.iso2);
             e164ForPhone = await _serverValidatePhone(
               iso2: sanitizedIso2,
               local: idValue,
             );
-            if (e164ForPhone == null) {
-              debugPrint('[SUBMIT][PHONE] server validation FAILED for iso2Raw=${selected.iso2} local="$idValue"');
-              setState(() => _isSubmitting = false);
-              //return; // <<< UPDATED: block submit when invalid
-            }
-            debugPrint(
-              '[SUBMIT][PHONE] server validation OK: iso2Raw=${selected.iso2} local="$idValue" e164="$e164ForPhone"',
-            );
           }
 
-          // Generate a 12-digit userID and call the real backend
           final newUserId = _genUserId();
 
-          // ===================== UPDATED PAYLOAD BUILD ======================
-          // Build the JSON payload for /api/signup with explicit identifierType
           final bodyMap = <String, dynamic>{
             'userID': newUserId,
-            'identifierType': _idType.name, // "username" \ "email" \ "phone"
+            'identifierType': _idType.name,
             'password': _passwordCtrl.text,
-          };
-
-          // Identifier-specific fields
-          if (_idType == IdentifierType.username) {
-            bodyMap['username'] = _identifierCtrl.text.trim();
-          } else if (_idType == IdentifierType.email) {
-            bodyMap['email'] = _identifierCtrl.text.trim();
-          } else if (_idType == IdentifierType.phone && _selectedRegion != null) {
-            bodyMap['phone_country_code'] = _selectedRegion!.code; // canonical e.g. "+44"
-            final local = _identifierCtrl.text.trim(); // digits-only local
-            bodyMap['phone_number'] = local;
-            if (e164ForPhone != null) bodyMap['phoneE164'] = e164ForPhone;
-          }
-
-          // Include security questions if you want to persist them
-          bodyMap.addAll({
             'secuQuestion1': _q1,
             'secuAns1': _a1Ctrl.text,
             'secuQuestion2': _q2,
             'secuAns2': _a2Ctrl.text,
             'secuQuestion3': _q3,
             'secuAns3': _a3Ctrl.text,
-          });
+          };
 
-          // Optional masked client-side log
-          final maskedForLog = Map<String, dynamic>.from(bodyMap);
-          maskedForLog['password'] = '*' * _passwordCtrl.text.characters.length;
-          if (maskedForLog.containsKey('email')) {
-            final e = maskedForLog['email'] as String;
-            final parts = e.split('@');
-            if (parts.length == 2) {
-              final local = parts[0];
-              final ml = local.length <= 2
-                  ? '*' * local.length
-                  : local[0] + ('*' * (local.length - 2)) + local[local.length - 1];
-              maskedForLog['email'] = '$ml@${parts[1]}';
+          if (_idType == IdentifierType.username) {
+            bodyMap['username'] = idValue;
+          } else if (_idType == IdentifierType.email) {
+            bodyMap['email'] = idValue;
+          } else if (_idType == IdentifierType.phone && selected != null) {
+            bodyMap['phone_country_code'] = selected.code;
+            bodyMap['phone_number'] = idValue;
+            if (e164ForPhone != null) bodyMap['phoneE164'] = e164ForPhone;
+          }
+
+          final returnedUserId = await _serverSignup(bodyMap: bodyMap);
+
+          if (returnedUserId != null) {
+            // NEW: If signing up via phone, update the display time to ISO-3
+            if (_idType == IdentifierType.phone && selected != null) {
+              await _updateDisplayTimeAfterSignup(
+                userId: returnedUserId,
+                region: selected,
+              );
+            }
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Registration successful. ID: $returnedUserId')),
+              );
+              Navigator.pop(context, true);
             }
           }
-          if (maskedForLog.containsKey('phone_number')) {
-            final p = maskedForLog['phone_number'] as String;
-            maskedForLog['phone_number'] =
-                p.length <= 3 ? '***' : p.substring(0, 2) + ('*' * (p.length - 4)) + p.substring(p.length - 2);
-          }
-          debugPrint('================ SIGNUP PAYLOAD (client) ================');
-          debugPrint('$maskedForLog');
-          debugPrint('=========================================================');
-          // =================== END UPDATED PAYLOAD BUILD ===================
-
-          final returnedUserId = await _serverSignup(
-            bodyMap: bodyMap, // <<< UPDATED: pass full body map
-          );
-
-          if (!mounted) return;
-          setState(() => _isSubmitting = false);
-
-          if (returnedUserId == null) {
-            // 409 conflict already produced a descriptive snackbar in _serverSignup().
-            // Keep a softer generic fallback for other failures.
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Sign-up could not be completed. Please try again.')),
-            );
-            return;
-          }
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Registration successful. Your ID: $returnedUserId')),
-          );
-          // Optionally pass a result back to Login
-          Navigator.pop(context, true);
+          
+          if (mounted) setState(() => _isSubmitting = false);
         },
       );
-    } on OfflineException {
-      // handled by requireOnline
     } catch (e) {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Something went wrong. Please try again.')));
-      }
+      if (mounted) setState(() => _isSubmitting = false);
       debugPrint('[SUBMIT] exception: $e');
     }
   }
@@ -985,15 +999,20 @@ class _SignupPageState extends State<SignupPage> {
                                     return r == null ? 'Choose a country' : null;
                                   },
 
+                                  
                                   onChanged: (r) {
                                     setState(() {
                                       _selectedRegion = r;
                                       if (r != null) {
                                         _countryCodeCtrl.text = r.code;
                                         _identifierCtrl.clear();
+
+                                        // ✅ LOG PHONE ISO (ISO‑2)
+                                        debugPrint('[REGIONS] Selected ISO2 | ${r.iso2}');
                                       }
                                     });
                                   },
+
                                 ),
 
                                 const SizedBox(height: 8),
