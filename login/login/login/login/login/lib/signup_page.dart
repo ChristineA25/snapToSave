@@ -1125,7 +1125,7 @@ class _SignupPageState extends State<SignupPage> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'After pressing Submit, you are agreeing to the fact that we are storing all your informtion to Railway, our cloud database. We will encrypt your email address or phone number. We will only collect information useful for suggesting financial advice to you. For more information about the cloud database, please access https://railway.com/',
+                        'After pressing Submit, you are agreeing to the fact that we are storing all your informtion to Railway, our cloud database. We will encrypt your email address or phone number. We will only collect information useful for suggesting financial advice to you. For more information about the cloud database, please access https://railway.com/\n\n\n',
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                       ),
