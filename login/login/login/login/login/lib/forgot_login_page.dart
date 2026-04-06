@@ -836,7 +836,6 @@ String iso2ToFlagEmoji(String iso2) {
     final TextEditingController idCtrl = TextEditingController();
     final TextEditingController passCtrl = TextEditingController();
     final dialogKey = GlobalKey<FormState>();
-    final TextEditingController phoneCtrl = TextEditingController();
 
     bool showPassword = false; // ✅ MUST live outside StatefulBuilder
 
@@ -865,62 +864,7 @@ String iso2ToFlagEmoji(String iso2) {
                     ),
                     const SizedBox(height: 20),
 
-                    if (_idType == IdentifierType.phone) ...[
-                      /// COUNTRY CODE SELECTOR (FLAG + CODE)
-                      DropdownSearch<PhoneRegion>(
-                        items: (filter, loadProps) => _regions,
-                        selectedItem: _selectedRegion,
-                        compareFn: (a, b) => a.iso2 == b.iso2,
-                        itemAsString: (r) {
-                          final flag = iso2ToFlagEmoji(r.iso2);
-                          return "$flag ${r.name} (${r.code})";
-                        },
-                        onChanged: (r) {
-                          setStepState(() {
-                            _selectedRegion = r;
-                            if (r != null) _countryCodeCtrl.text = r.code;
-                          });
-                        },
-                        decoratorProps: const DropDownDecoratorProps(
-                          decoration: InputDecoration(
-                            labelText: "Phone Number",
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        popupProps: const PopupProps.menu(
-                          showSearchBox: true,
-                          searchFieldProps: TextFieldProps(
-                            decoration: InputDecoration(
-                              hintText: "Search country or code",
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      /// LOCAL PHONE NUMBER FIELD
-                      TextFormField(
-                        controller: phoneCtrl,
-                        keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(
-                          labelText: "Phone Number",
-                          hintText: "e.g. 475123456",
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (v) {
-                          final raw = (v ?? '').trim();
-                          if (raw.isEmpty) return 'Phone number is required';
-                          if (!_digitsOnly.hasMatch(raw)) return 'Digits only';
-
-                          final r = _selectedRegion;
-                          if (r != null && (raw.length < r.min || raw.length > r.max)) {
-                            return 'Expected ${r.min}-${r.max} digits for ${r.name}.';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
+                    _buildIdentifierField(theme, idCtrl, setStepState),
 
                     const SizedBox(height: 15),
 
@@ -967,13 +911,12 @@ String iso2ToFlagEmoji(String iso2) {
                     _updateUserIdentity(
                       userId: _foundUserID,
                       type: _idType,
-                      identifier: _idType == IdentifierType.phone
-                          ? phoneCtrl.text.trim()   // ✅ local number ONLY
-                          : idCtrl.text.trim(),
+                      identifier: idCtrl.text.trim(),
                       password: passCtrl.text.trim(),
-                      countryCode: _idType == IdentifierType.phone
-                          ? _countryCodeCtrl.text
-                          : null,
+                      countryCode:
+                          _idType == IdentifierType.phone
+                              ? _countryCodeCtrl.text
+                              : null,
                     );
                   }
                 },
@@ -1019,39 +962,31 @@ String iso2ToFlagEmoji(String iso2) {
       ),
     );
   }
-  
-  Widget _buildIdentifierField(
-    ThemeData theme,
-    TextEditingController controller,
-    StateSetter setStepState,
-  ) {
+
+  Widget _buildIdentifierField(ThemeData theme, TextEditingController controller, StateSetter setStepState) {
+    // Determine if phone mode is active to show the country code picker
     final bool isPhone = _idType == IdentifierType.phone;
 
     return TextFormField(
       controller: controller,
-
-      // ✅ Allow multiline + vertical expansion
-      keyboardType:
-          isPhone ? TextInputType.phone : TextInputType.multiline,
-      textInputAction: TextInputAction.newline,
-      minLines: 1,
-      maxLines: null, // <-- expands to next line automatically
+      // Switch keyboard type to phone if needed, or multiline to allow the "Enter" key
+      keyboardType: isPhone ? TextInputType.phone : TextInputType.multiline,
+      
+      // --- EXPANDABLE UI LOGIC ---
+      // null maxLines allows the field to grow vertically as the user types
+      maxLines: isPhone ? 1 : null, 
+      minLines: 1, 
+      // ---------------------------
 
       decoration: InputDecoration(
-        labelText: isPhone
-            ? "Phone Number"
-            : (_idType == IdentifierType.email ? "Email" : "Username"),
-
-        border: const OutlineInputBorder(),
-
-        hintText: isPhone
-            ? "e.g. 7123456789"
-            : "Enter your identifier",
-
-        // ✅ Country selector stays intact for phone mode
+        labelText: isPhone ? "Phone Number" : (_idType == IdentifierType.email ? "Email" : "Username"),
+        // Ensures the label stays at the top when the box expands
+        alignLabelWithHint: true, 
+        
+        // Add the country code dropdown as a prefix icon if in phone mode
         prefixIcon: isPhone
             ? Container(
-                constraints: const BoxConstraints(minWidth: 120),
+                width: 140,
                 padding: const EdgeInsets.only(left: 8),
                 child: DropdownSearch<PhoneRegion>(
                   items: (filter, loadProps) => _regions,
@@ -1088,33 +1023,40 @@ String iso2ToFlagEmoji(String iso2) {
                     ? Icons.email
                     : Icons.person,
               ),
-      ),
 
-      // ✅ Keep your existing strong validation
+        border: const OutlineInputBorder(),
+        hintText: isPhone ? "e.g. 7123456789" : "Enter your identifier",
+      ),
+      // Use the comprehensive validator logic from signup_page
       validator: (v) {
         final raw = (v ?? '').trim();
         if (raw.isEmpty) return 'This field is required';
 
         if (isPhone) {
+          // 1. Ensure only digits are entered
           if (!_digitsOnly.hasMatch(raw)) {
             return 'Enter digits only';
           }
+
+          // 2. Validate length based on the selected country's database rules
           final r = _selectedRegion;
-          if (r != null &&
-              (raw.length < r.min || raw.length > r.max)) {
-            return 'Expected ${r.min}-${r.max} digits for ${r.name}.';
+          if (r != null) {
+            if (raw.length < r.min || raw.length > r.max) {
+              return 'Expected ${r.min}-${r.max} digits for ${r.name}.';
+            }
           }
         } else if (_idType == IdentifierType.email) {
+          // Standard email validation
           if (!_email.hasMatch(raw)) return 'Enter a valid email address';
           if (raw.length > kEmailMaxLen) return 'Email is too long';
         } else {
+          // Username strength validation
           return _validateStrong(raw, 'Username');
         }
         return null;
       },
     );
   }
-
   // Simplified Success Dialog
   void _showFinalSuccessDialog(String confirmedValue) {
   showDialog(
