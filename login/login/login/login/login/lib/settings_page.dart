@@ -366,33 +366,36 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   bool _hasUnsavedChanges() {
-    final currentSalary = _salaryCtrl.text.trim();
-    final currentSaving = _targetSavingCtrl.text.trim();
-    final currentHome = _postcodeCtrl.text.trim().toUpperCase();
-    final currentWork = _workPostcodeCtrl.text.trim().toUpperCase();
-    final currentHomeAddr = _homeAddressCtrl.text.trim();
-    final currentWorkAddr = _workAddressCtrl.text.trim();
+  // 1. Normalize current inputs from controllers
+  final currentSalary = double.tryParse(_salaryCtrl.text.trim()) ?? 0.0;
+  final currentSaving = double.tryParse(_targetSavingCtrl.text.trim()) ?? 0.0;
+  final currentHomePc = _postcodeCtrl.text.trim().toUpperCase();
+  final currentWorkPc = _workPostcodeCtrl.text.trim().toUpperCase();
+  final currentHomeAddr = _homeAddressCtrl.text.trim();
+  final currentWorkAddr = _workAddressCtrl.text.trim();
 
-    final lastSalary = _salary == null ? '' : _salary!.toStringAsFixed(2);
-    final lastSaving = _targetSaving == null ? '' : _targetSaving!.toStringAsFixed(2);
-    final lastHome = (_postcode ?? '').toUpperCase();
-    final lastWork = (_workPostcode ?? '').toUpperCase();
-    final lastHomeAddr = (_homeAddress ?? '');
-    final lastWorkAddr = (_workAddress ?? '');
+  // 2. Normalize last saved values (handle nulls)
+  final lastSalary = _salary ?? 0.0;
+  final lastSaving = _targetSaving ?? 0.0;
+  final lastHomePc = (_postcode ?? '').toUpperCase();
+  final lastWorkPc = (_workPostcode ?? '').toUpperCase();
+  final lastHomeAddr = _homeAddress ?? '';
+  final lastWorkAddr = _workAddress ?? '';
 
-    final fieldsChanged = (currentSalary != lastSalary) ||
-        (currentSaving != lastSaving) ||
-        (currentHome != lastHome) ||
-        (currentWork != lastWork) ||
-        (currentHomeAddr != lastHomeAddr) ||
-        (currentWorkAddr != lastWorkAddr);
+  // 3. Check if any text field has changed numerically or textually
+  final fieldsChanged = (currentSalary != lastSalary) ||
+      (currentSaving != lastSaving) ||
+      (currentHomePc != lastHomePc) ||
+      (currentWorkPc != lastWorkPc) ||
+      (currentHomeAddr != lastHomeAddr) ||
+      (currentWorkAddr != lastWorkAddr);
 
-    final allergensChanged =
-        !_setsEqual(_selectedAllergenIds, _savedAllergensSnapshot);
-    final blacklistChanged =
-        !_setsEqual(_selectedBlacklistIds, _savedBlacklistSnapshot);
-    return fieldsChanged || allergensChanged || blacklistChanged;
-  }
+  // 4. Check if selections (Allergens/Blacklist) have changed
+  final allergensChanged = !_setsEqual(_selectedAllergenIds, _savedAllergensSnapshot);
+  final blacklistChanged = !_setsEqual(_selectedBlacklistIds, _savedBlacklistSnapshot);
+
+  return fieldsChanged || allergensChanged || blacklistChanged;
+}
 
   Future<String?> _confirmSaveBeforeLeave({required String leavingAction}) {
     return showDialog<String>(
@@ -1875,25 +1878,75 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  /* ─────────────────────────────── Save flow ──────────────────────────────── */
+  /* ─────────────────────────────── Save flow ──────────────────────────────── */  
   Future<void> _handleSave() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    // ─────────────────────────────────────────
+    // 1. Read current text values
+    // ─────────────────────────────────────────
+    final salaryText = _salaryCtrl.text.trim();
+    final savingText = _targetSavingCtrl.text.trim();
 
-    final parsedSalary = double.tryParse(_salaryCtrl.text.trim());
-    final parsedSaving = double.tryParse(_targetSavingCtrl.text.trim());
-    if (parsedSalary == null || parsedSaving == null) return;
+    final savedSalaryText =
+        _salary == null ? '' : _salary!.toStringAsFixed(2);
+    final savedSavingText =
+        _targetSaving == null ? '' : _targetSaving!.toStringAsFixed(2);
 
-    if (parsedSaving >= parsedSalary) {
+    // Detect per‑field changes
+    final salaryChanged = salaryText != savedSalaryText;
+    final savingChanged = savingText != savedSavingText;
+
+    double? parsedSalary;
+    double? parsedSaving;
+
+    // ─────────────────────────────────────────
+    // 2. Validate ONLY changed finance fields
+    // ─────────────────────────────────────────
+    if (salaryChanged) {
+      final err =
+          _validateMoneyLoose(salaryText, fieldName: 'Salary');
+      if (err != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(err)));
+        return;
+      }
+      parsedSalary = double.tryParse(salaryText);
+    }
+
+    if (savingChanged) {
+      final err =
+          _validateMoneyLoose(savingText, fieldName: 'Saving');
+      if (err != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(err)));
+        return;
+      }
+      parsedSaving = double.tryParse(savingText);
+    }
+
+    // ─────────────────────────────────────────
+    // 3. Cross‑field check ONLY if both exist
+    // ─────────────────────────────────────────
+    final effectiveSalary = parsedSalary ?? _salary;
+    final effectiveSaving = parsedSaving ?? _targetSaving;
+
+    if (effectiveSalary != null &&
+        effectiveSaving != null &&
+        effectiveSaving >= effectiveSalary) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Target saving must be less than salary')),
+        const SnackBar(
+          content: Text('Target saving must be less than salary'),
+        ),
       );
       return;
     }
 
+    // ─────────────────────────────────────────
+    // 4. Always allow address / other fields
+    // ─────────────────────────────────────────
     final homeAddr = _homeAddressCtrl.text.trim();
     final workAddr = _workAddressCtrl.text.trim();
-    final home = _postcodeCtrl.text.trim().toUpperCase();
-    final work = _workPostcodeCtrl.text.trim().toUpperCase();
+    final homePostcode = _postcodeCtrl.text.trim().toUpperCase();
+    final workPostcode = _workPostcodeCtrl.text.trim().toUpperCase();
 
     setState(() => _savingSettings = true);
 
@@ -1904,12 +1957,16 @@ class _SettingsPageState extends State<SettingsPage> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userID': widget.userId,
-          'monthlySalary': _salaryCtrl.text,
-          'targetMonthlySaving': _targetSavingCtrl.text,
+
+          // ✅ Send ONLY changed finance fields
+          if (salaryChanged) 'monthlySalary': salaryText,
+          if (savingChanged) 'targetMonthlySaving': savingText,
+
+          // ✅ Always send address data
           'homeAdd': homeAddr,
           'workAdd': workAddr,
-          'homeAddCode': home,
-          'workAddCode': work,
+          'homeAddCode': homePostcode,
+          'workAddCode': workPostcode,
         }),
       );
 
@@ -1922,12 +1979,17 @@ class _SettingsPageState extends State<SettingsPage> {
         await _saveUserBlacklist();
         await _saveDisplayTime();
 
+        // Update local saved state
+        if (salaryChanged) _salary = parsedSalary;
+        if (savingChanged) _targetSaving = parsedSaving;
+
         _snapshotCurrentAsSaved();
       } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Save failed (${resp.statusCode})')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed (${resp.statusCode})')),
+        );
       }
-    } catch (e) {
+    } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Network error saving settings')),
       );
@@ -1935,6 +1997,8 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) setState(() => _savingSettings = false);
     }
   }
+
+
 
 
   /* ─────────────────────────────── Logout flow ─────────────────────────────── */
