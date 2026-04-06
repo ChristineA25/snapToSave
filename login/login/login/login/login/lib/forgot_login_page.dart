@@ -866,14 +866,15 @@ String iso2ToFlagEmoji(String iso2) {
                     const SizedBox(height: 20),
 
                     if (_idType == IdentifierType.phone) ...[
-                      /// COUNTRY CODE SELECTOR (FLAG + CODE)
+                      // Country selector (unchanged)
                       DropdownSearch<PhoneRegion>(
                         items: (filter, loadProps) => _regions,
                         selectedItem: _selectedRegion,
                         compareFn: (a, b) => a.iso2 == b.iso2,
                         itemAsString: (r) {
                           final flag = iso2ToFlagEmoji(r.iso2);
-                          return "$flag ${r.name} (${r.code})";
+                          final pretty = r.displayCode ?? r.code;
+                          return '${flag.isNotEmpty ? '$flag ' : ''}${r.name} ($pretty)';
                         },
                         onChanged: (r) {
                           setStepState(() {
@@ -883,29 +884,22 @@ String iso2ToFlagEmoji(String iso2) {
                         },
                         decoratorProps: const DropDownDecoratorProps(
                           decoration: InputDecoration(
-                            labelText: "Phone Number",
+                            labelText: 'Country Code',
                             border: OutlineInputBorder(),
                           ),
                         ),
-                        popupProps: const PopupProps.menu(
-                          showSearchBox: true,
-                          searchFieldProps: TextFieldProps(
-                            decoration: InputDecoration(
-                              hintText: "Search country or code",
-                            ),
-                          ),
-                        ),
+                        popupProps: const PopupProps.menu(showSearchBox: true),
                       ),
 
                       const SizedBox(height: 12),
 
-                      /// LOCAL PHONE NUMBER FIELD
+                      // ✅ LOCAL NUMBER ONLY FIELD
                       TextFormField(
                         controller: phoneCtrl,
                         keyboardType: TextInputType.phone,
                         decoration: const InputDecoration(
-                          labelText: "Phone Number",
-                          hintText: "e.g. 475123456",
+                          labelText: "Phone Number (without country code)",
+                          hintText: "e.g. 7123456789",
                           border: OutlineInputBorder(),
                         ),
                         validator: (v) {
@@ -920,7 +914,11 @@ String iso2ToFlagEmoji(String iso2) {
                           return null;
                         },
                       ),
+                    ] else ...[
+                      // ✅ Username / Email (unchanged)
+                      _buildIdentifierField(theme, idCtrl, setStepState),
                     ],
+
 
                     const SizedBox(height: 15),
 
