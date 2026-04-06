@@ -836,6 +836,7 @@ String iso2ToFlagEmoji(String iso2) {
     final TextEditingController idCtrl = TextEditingController();
     final TextEditingController passCtrl = TextEditingController();
     final dialogKey = GlobalKey<FormState>();
+    final TextEditingController phoneCtrl = TextEditingController();
 
     bool showPassword = false; // ✅ MUST live outside StatefulBuilder
 
@@ -864,7 +865,62 @@ String iso2ToFlagEmoji(String iso2) {
                     ),
                     const SizedBox(height: 20),
 
-                    _buildIdentifierField(theme, idCtrl, setStepState),
+                    if (_idType == IdentifierType.phone) ...[
+                      /// COUNTRY CODE SELECTOR (FLAG + CODE)
+                      DropdownSearch<PhoneRegion>(
+                        items: (filter, loadProps) => _regions,
+                        selectedItem: _selectedRegion,
+                        compareFn: (a, b) => a.iso2 == b.iso2,
+                        itemAsString: (r) {
+                          final flag = iso2ToFlagEmoji(r.iso2);
+                          return "$flag ${r.name} (${r.code})";
+                        },
+                        onChanged: (r) {
+                          setStepState(() {
+                            _selectedRegion = r;
+                            if (r != null) _countryCodeCtrl.text = r.code;
+                          });
+                        },
+                        decoratorProps: const DropDownDecoratorProps(
+                          decoration: InputDecoration(
+                            labelText: "Phone Number",
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        popupProps: const PopupProps.menu(
+                          showSearchBox: true,
+                          searchFieldProps: TextFieldProps(
+                            decoration: InputDecoration(
+                              hintText: "Search country or code",
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      /// LOCAL PHONE NUMBER FIELD
+                      TextFormField(
+                        controller: phoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: "Phone Number",
+                          hintText: "e.g. 475123456",
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) {
+                          final raw = (v ?? '').trim();
+                          if (raw.isEmpty) return 'Phone number is required';
+                          if (!_digitsOnly.hasMatch(raw)) return 'Digits only';
+
+                          final r = _selectedRegion;
+                          if (r != null && (raw.length < r.min || raw.length > r.max)) {
+                            return 'Expected ${r.min}-${r.max} digits for ${r.name}.';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
 
                     const SizedBox(height: 15),
 
@@ -911,12 +967,13 @@ String iso2ToFlagEmoji(String iso2) {
                     _updateUserIdentity(
                       userId: _foundUserID,
                       type: _idType,
-                      identifier: idCtrl.text.trim(),
+                      identifier: _idType == IdentifierType.phone
+                          ? phoneCtrl.text.trim()   // ✅ local number ONLY
+                          : idCtrl.text.trim(),
                       password: passCtrl.text.trim(),
-                      countryCode:
-                          _idType == IdentifierType.phone
-                              ? _countryCodeCtrl.text
-                              : null,
+                      countryCode: _idType == IdentifierType.phone
+                          ? _countryCodeCtrl.text
+                          : null,
                     );
                   }
                 },
@@ -962,22 +1019,39 @@ String iso2ToFlagEmoji(String iso2) {
       ),
     );
   }
-
-  Widget _buildIdentifierField(ThemeData theme, TextEditingController controller, StateSetter setStepState) {
-    // Determine if phone mode is active to show the country code picker
+  
+  Widget _buildIdentifierField(
+    ThemeData theme,
+    TextEditingController controller,
+    StateSetter setStepState,
+  ) {
     final bool isPhone = _idType == IdentifierType.phone;
 
     return TextFormField(
       controller: controller,
-      // Switch keyboard type to phone if needed
-      keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
+
+      // ✅ Allow multiline + vertical expansion
+      keyboardType:
+          isPhone ? TextInputType.phone : TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      minLines: 1,
+      maxLines: null, // <-- expands to next line automatically
+
       decoration: InputDecoration(
-        labelText: isPhone ? "Phone Number" : (_idType == IdentifierType.email ? "Email" : "Username"),
-        // Add the country code dropdown as a prefix icon if in phone mode
-        
+        labelText: isPhone
+            ? "Phone Number"
+            : (_idType == IdentifierType.email ? "Email" : "Username"),
+
+        border: const OutlineInputBorder(),
+
+        hintText: isPhone
+            ? "e.g. 7123456789"
+            : "Enter your identifier",
+
+        // ✅ Country selector stays intact for phone mode
         prefixIcon: isPhone
             ? Container(
-                width: 140,
+                constraints: const BoxConstraints(minWidth: 120),
                 padding: const EdgeInsets.only(left: 8),
                 child: DropdownSearch<PhoneRegion>(
                   items: (filter, loadProps) => _regions,
@@ -988,7 +1062,7 @@ String iso2ToFlagEmoji(String iso2) {
                     final pretty = r.displayCode ?? r.code;
                     return '${flag.isNotEmpty ? '$flag ' : ''}${r.name} ($pretty)';
                   },
-                  decoratorProps: DropDownDecoratorProps(
+                  decoratorProps: const DropDownDecoratorProps(
                     decoration: InputDecoration(
                       border: InputBorder.none,
                     ),
@@ -1014,40 +1088,33 @@ String iso2ToFlagEmoji(String iso2) {
                     ? Icons.email
                     : Icons.person,
               ),
-
-                border: const OutlineInputBorder(),
-        hintText: isPhone ? "e.g. 7123456789" : "Enter your identifier",
       ),
-      // Use the comprehensive validator logic from signup_page
+
+      // ✅ Keep your existing strong validation
       validator: (v) {
         final raw = (v ?? '').trim();
         if (raw.isEmpty) return 'This field is required';
 
         if (isPhone) {
-          // 1. Ensure only digits are entered
           if (!_digitsOnly.hasMatch(raw)) {
             return 'Enter digits only';
           }
-
-          // 2. Validate length based on the selected country's database rules
           final r = _selectedRegion;
-          if (r != null) {
-            if (raw.length < r.min || raw.length > r.max) {
-              return 'Expected ${r.min}-${r.max} digits for ${r.name}.';
-            }
+          if (r != null &&
+              (raw.length < r.min || raw.length > r.max)) {
+            return 'Expected ${r.min}-${r.max} digits for ${r.name}.';
           }
         } else if (_idType == IdentifierType.email) {
-          // Standard email validation
           if (!_email.hasMatch(raw)) return 'Enter a valid email address';
           if (raw.length > kEmailMaxLen) return 'Email is too long';
         } else {
-          // Username strength validation
           return _validateStrong(raw, 'Username');
         }
         return null;
       },
     );
   }
+
   // Simplified Success Dialog
   void _showFinalSuccessDialog(String confirmedValue) {
   showDialog(
