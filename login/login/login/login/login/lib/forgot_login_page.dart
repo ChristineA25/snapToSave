@@ -32,6 +32,8 @@ class ForgotLoginPage extends StatefulWidget {
 
 class _ForgotLoginPageState extends State<ForgotLoginPage> {
 
+  bool _isProcessingTest = false; // New flag to prevent spamming/immediate reset
+
   IdentifierType _idType = IdentifierType.username;
   PhoneRegion? _selectedRegion;
   List<PhoneRegion> _regions = [];
@@ -1083,27 +1085,49 @@ String iso2ToFlagEmoji(String iso2) {
   }
 
   void _stopHolding() {
-  setState(() => _holding = false);
+  // If we are already in the "waiting" period after a failure, do nothing
+  if (_isProcessingTest) return;
+
   _timer?.cancel();
   _holdWatch.stop();
-
   final int elapsedMs = _holdWatch.elapsedMilliseconds;
+
+  setState(() {
+    _holding = false;
+    _readyToRelease = false;
+  });
+
   final int minMs = _requiredSeconds * 1000;
   final int maxMs = (_requiredSeconds + _graceSeconds) * 1000;
 
-  if (elapsedMs < minMs) {
-    setState(() => _isHumanVerified = false);
-    _showFeedback("Failed: Released too early.");
-    _generateRequiredSeconds(); // Reset for a new attempt
-  } else if (elapsedMs > maxMs) {
-    setState(() => _isHumanVerified = false);
-    _showFeedback("Failed: Held for too long.");
-    _generateRequiredSeconds(); // Reset for a new attempt
+  if (elapsedMs < minMs || elapsedMs > maxMs) {
+    // FAILURE CASE
+    setState(() {
+      _isHumanVerified = false;
+      _isProcessingTest = true; // Lock the button
+    });
+
+    String errorMsg = elapsedMs < minMs 
+        ? "Failed: Released too early (${(elapsedMs / 1000).toStringAsFixed(1)}s)." 
+        : "Failed: Held for too long.";
+
+    _showFeedback(errorMsg);
+
+    // Wait 3 seconds for the user to read the SnackBar before resetting
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _isProcessingTest = false; // Unlock the button
+          _currentSeconds = 0;       // Reset visual counter
+          _generateRequiredSeconds(); // Generate new target
+        });
+      }
+    });
   } else {
-    // SUCCESS
+    // SUCCESS CASE
     setState(() {
       _isHumanVerified = true;
-      _readyToRelease = false; 
+      _isProcessingTest = false;
     });
   }
 }
@@ -1275,71 +1299,70 @@ String iso2ToFlagEmoji(String iso2) {
   }
 
   Widget _humanTestSection() {
-  return Column(
-    key: humanTestKey,
-    children: [
-      Text(
-        "Human Verification",
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
-      const SizedBox(height: 10),
-      Text(
-        _isHumanVerified 
-          ? "Verification Complete" 
-          : "Press & hold for ~$_requiredSeconds seconds, then release.",
-        style: const TextStyle(fontSize: 16),
-      ),
-      const SizedBox(height: 20),
-      GestureDetector(
-        // Disable gestures if already verified
-        onTapDown: _isHumanVerified ? null : (_) => _startHolding(),
-        onTapUp: _isHumanVerified ? null : (_) => _stopHolding(),
-        onTapCancel: _isHumanVerified ? null : () => _stopHolding(),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: 240,
-          height: 70,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: _isHumanVerified 
-                ? Colors.green 
-                : (_readyToRelease ? Colors.orange : Colors.blue),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              if (_holding) BoxShadow(color: Colors.blue.withOpacity(0.5), blurRadius: 10)
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                _isHumanVerified ? Icons.check_circle : Icons.fingerprint,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                _isHumanVerified
-                    ? "VERIFIED HUMAN"
-                    : (_readyToRelease 
-                        ? "RELEASE NOW!" 
-                        : "HOLD: $_currentSeconds / $_requiredSeconds"),
-                style: const TextStyle(
+    return Column(
+      key: humanTestKey,
+      children: [
+        const Text(
+          "Human Verification",
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: Color(0xFF333333)),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "Press & hold for ~$_requiredSeconds seconds, then release.",
+          style: const TextStyle(fontSize: 14, color: Color(0xFF444444)),
+        ),
+        const SizedBox(height: 24),
+        GestureDetector(
+          // Disable interactions if verified OR if currently showing a failure message
+          onLongPressStart: (_isHumanVerified || _isProcessingTest) 
+              ? null 
+              : (_) => _startHolding(),
+          onLongPressEnd: (_isHumanVerified || _isProcessingTest) 
+              ? null 
+              : (_) => _stopHolding(),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 280,
+            height: 90,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              // Keep your original colors and styling
+              color: _isHumanVerified ? Colors.green : const Color(0xFF2196F3),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _isHumanVerified ? Icons.check : Icons.fingerprint,
                   color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  size: 32,
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Text(
+                  _isHumanVerified
+                      ? "VERIFIED"
+                      : "HOLD: $_currentSeconds / $_requiredSeconds",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-      if (!_isHumanVerified)
+        const SizedBox(height: 12),
         TextButton(
-          onPressed: _generateRequiredSeconds,
-          child: const Text("Reset Timer"),
+          onPressed: _isHumanVerified ? null : _generateRequiredSeconds,
+          child: const Text(
+            "Reset Timer",
+            style: TextStyle(color: Color(0xFF5C5C8C), fontSize: 16),
+          ),
         ),
-      const SizedBox(height: 20),
-    ],
-  );
-}
+      ],
+    );
+  }
 }
