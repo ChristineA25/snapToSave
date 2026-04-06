@@ -776,8 +776,7 @@ String iso2ToFlagEmoji(String iso2) {
     return false;
   }
 }
-
-  // 1. UPDATED: Logic to call the identity update API
+  
   Future<void> _updateUserIdentity({
     required String? userId,
     required IdentifierType type,
@@ -792,39 +791,53 @@ String iso2ToFlagEmoji(String iso2) {
     try {
       final response = await http.put(
         Uri.parse('https://nodejs-production-f031.up.railway.app/api/user/update-identity'),
-        headers: {"Content-Type": "application/json"},
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          "userID": userId,
-          "username": type == IdentifierType.username ? identifier : null,
-          "email": type == IdentifierType.email ? identifier : null,
-          "phone_number": type == IdentifierType.phone ? identifier : null,
-          "phone_country_code": type == IdentifierType.phone ? countryCode : null,
-          "password": password,
+          'userID': userId,
+          'username': type == IdentifierType.username ? identifier : null,
+          'email': type == IdentifierType.email ? identifier : null,
+          'phone_number': type == IdentifierType.phone ? identifier : null,
+          'phone_country_code': type == IdentifierType.phone ? countryCode : null,
+          'password': password,
         }),
       );
 
+      // ✅ SUCCESS
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['ok'] == true) {
           _showFinalSuccessDialog(identifier);
-        } else {
-          _showFeedback(data['message'] ?? "Update failed");
+          return;
         }
-      } else {
-        _showFeedback("Server error: ${response.statusCode}");
       }
+
+      // ✅ DUPLICATE — SAME AS SIGNUP
+      if (response.statusCode == 409) {
+        final data = jsonDecode(response.body);
+        final field = data['field'] ?? 'Identifier';
+        final message = data['message'] ??
+            '$field already in use. Please choose a different one.';
+        _showFeedback(message);
+        return;
+      }
+
+      // ❌ OTHER SERVER ERRORS
+      _showFeedback(
+        'Update failed (HTTP ${response.statusCode}). Please try again.',
+      );
     } catch (e) {
-      _showFeedback("Connection error: $e");
+      _showFeedback('Connection error: $e');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  // 2. UPDATED: Dialog UI to trigger the API call
   void _showNewCredentialsDialog() {
     final TextEditingController idCtrl = TextEditingController();
     final TextEditingController passCtrl = TextEditingController();
     final dialogKey = GlobalKey<FormState>();
+
+    bool showPassword = false; // ✅ MUST live outside StatefulBuilder
 
     showDialog(
       context: context,
@@ -832,6 +845,7 @@ String iso2ToFlagEmoji(String iso2) {
       builder: (context) => StatefulBuilder(
         builder: (context, setStepState) {
           final theme = Theme.of(context);
+
           return AlertDialog(
             title: const Text("Reset Account Details"),
             content: SingleChildScrollView(
@@ -849,36 +863,60 @@ String iso2ToFlagEmoji(String iso2) {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    _buildIdentifierField(theme, idCtrl, setStepState), 
+
+                    _buildIdentifierField(theme, idCtrl, setStepState),
+
                     const SizedBox(height: 15),
+
+                    // ✅ PASSWORD FIELD WITH LOCK TOGGLE
                     TextFormField(
                       controller: passCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
+                      obscureText: !showPassword,
+                      decoration: InputDecoration(
                         labelText: "New Password",
-                        prefixIcon: Icon(Icons.lock),
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
+
+                        // ✅ LOCK ICON CONTROLS VISIBILITY
+                        prefixIcon: IconButton(
+                          icon: Icon(
+                            showPassword ? Icons.lock_open : Icons.lock,
+                          ),
+                          tooltip: showPassword
+                              ? "Hide password"
+                              : "Show password",
+                          onPressed: () {
+                            setStepState(() {
+                              showPassword = !showPassword;
+                            });
+                          },
+                        ),
                       ),
-                      validator: (v) => _validateStrong(v ?? '', 'Password'),
+                      validator: (v) =>
+                          _validateStrong(v ?? '', 'Password'),
                     ),
-                  ]
+                  ],
                 ),
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
               ElevatedButton(
                 onPressed: () {
                   if (dialogKey.currentState!.validate()) {
-                    Navigator.pop(context); // Close dialog
-                    
-                    // CALL THE UPDATED IDENTITY API
+                    Navigator.pop(context);
+
                     _updateUserIdentity(
                       userId: _foundUserID,
                       type: _idType,
                       identifier: idCtrl.text.trim(),
                       password: passCtrl.text.trim(),
-                      countryCode: _idType == IdentifierType.phone ? _countryCodeCtrl.text : null,
+                      countryCode:
+                          _idType == IdentifierType.phone
+                              ? _countryCodeCtrl.text
+                              : null,
                     );
                   }
                 },
