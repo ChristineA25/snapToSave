@@ -935,9 +935,9 @@ String? _validateIdentifier(String? value) {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildTypeRadio(setStepState, "User", IdentifierType.username),
-                        _buildTypeRadio(setStepState, "Email", IdentifierType.email),
-                        _buildTypeRadio(setStepState, "Phone", IdentifierType.phone),
+                        _buildTypeRadio(setStepState, "User", IdentifierType.username, idCtrl, dialogKey),
+                        _buildTypeRadio(setStepState, "Email", IdentifierType.email, idCtrl, dialogKey),
+                        _buildTypeRadio(setStepState, "Phone", IdentifierType.phone, idCtrl, dialogKey),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -1019,21 +1019,84 @@ String? _validateIdentifier(String? value) {
   }
 
   // Helper for the radio toggle
-  Widget _buildTypeRadio(StateSetter setState, String label, IdentifierType type) {
+  Widget _buildTypeRadio(
+    StateSetter setState,
+    String label,
+    IdentifierType type,
+    TextEditingController controller,
+    GlobalKey<FormState> formKey,
+  ) {
     return InkWell(
-      onTap: () => setState(() => _idType = type),
+      onTap: () {
+        setState(() {
+          // 1. Switch identifier type
+          _idType = type;
+
+          // 2. Clear the input field
+          controller.clear();
+
+          // 3. Reset validation visuals
+          formKey.currentState?.reset();
+
+          // ✅ UI ONLY: Default to UK when switching to phone
+          if (type == IdentifierType.phone) {
+            
+            final uk = _regions.isNotEmpty
+                ? _regions.firstWhere(
+                    (r) => r.iso2 == 'GB',
+                    orElse: () => _regions.first,
+                  )
+                : null;
+
+            _selectedRegion = uk;
+
+            if (uk != null) {
+              _countryCodeCtrl.text = uk.code;
+            }
+          } else {
+            // Non-phone mode clears visual phone state
+            _selectedRegion = null;
+          }
+        });
+      },
       child: Column(
         children: [
           Radio<IdentifierType>(
             value: type,
             groupValue: _idType,
-            onChanged: (v) => setState(() => _idType = v!),
+            onChanged: (v) {
+              setState(() {
+                _idType = v!;
+                controller.clear();
+                formKey.currentState?.reset();
+
+                // ✅ Same logic when radio circle itself is tapped
+                if (v == IdentifierType.phone) {
+                  
+                  final uk = _regions.isNotEmpty
+                      ? _regions.firstWhere(
+                          (r) => r.iso2 == 'GB',
+                          orElse: () => _regions.first,
+                        )
+                      : null;
+
+                  _selectedRegion = uk;
+
+                  if (uk != null) {
+                    _countryCodeCtrl.text = uk.code;
+                  }
+                } else {
+                  _selectedRegion = null;
+                }
+              });
+            },
           ),
           Text(label, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
   }
+
 
   // Helper for the radio toggle in the dialog
   Widget _buildTypeOption(StateSetter setState, String label, IdentifierType type) {
