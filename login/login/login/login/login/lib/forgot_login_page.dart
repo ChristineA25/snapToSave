@@ -23,6 +23,8 @@ import 'api_guard.dart'; // Ensure this matches your project structure
 
 import 'package:dropdown_search/dropdown_search.dart';
 
+import 'package:flutter/services.dart';
+
 class ForgotLoginPage extends StatefulWidget {
   const ForgotLoginPage({super.key});
 
@@ -327,44 +329,65 @@ String iso2ToFlagEmoji(String iso2) {
   final int b = base + (iso2.toUpperCase().codeUnitAt(1) - 0x41);
   return String.fromCharCodes([a, b]);
 }
-  
-  String? _validateStrong(String value, String label) {
+
+String? _validateStrong(String value, String label) {
   final v = value;
+
+  // ✅ HARD MAX LENGTH GUARD (same pattern as username)
+  if (v.characters.length > kPasswordMaxLen) {
+    return '$label cannot exceed $kPasswordMaxLen characters.';
+  }
+
   final missing = <String>[];
+
   if (v.characters.length < 8) missing.add('≥ 8 characters');
   if (!_upper.hasMatch(v)) missing.add('an uppercase letter');
   if (!_lower.hasMatch(v)) missing.add('a lowercase letter');
   if (!_digit.hasMatch(v)) missing.add('a number');
   if (!_symbol.hasMatch(v)) missing.add('a symbol');
+
   if (missing.isEmpty) return null;
   return '$label must include ${missing.join(', ')}.';
 }
+  
+String? _validateIdentifier(String? value) {
+  final v = (value ?? '').trim();
 
-  String? _validateIdentifier(String? value) {
-    final v = (value ?? '').trim();
-    switch (_idType) {
-      case IdentifierType.username:
-        if (v.isEmpty) return 'Username is required';
-        final strongErr = _validateStrong(v, 'Username');
-        if (strongErr != null) return strongErr;
-        if (!_usernamePattern.hasMatch(v)) return 'Username must be < 100 characters.';
-        return null;
-      case IdentifierType.email:
-        if (v.isEmpty) return 'Email is required';
-        if (v.characters.length > kEmailMaxLen) return 'Email must be ≤ $kEmailMaxLen chars';
-        if (!_email.hasMatch(v)) return 'Enter a valid email address';
-        return null;
-      case IdentifierType.phone:
-        if (v.isEmpty) return 'Phone number is required';
-        if (!_digitsOnly.hasMatch(v)) return 'Enter digits only';
-        final r = _selectedRegion;
-        if (r == null) return 'Choose a country';
-        if (v.length < r.min || v.length > r.max) {
-          return 'Expected ${r.min}-${r.max} digits for ${r.name}.';
-        }
-        return null;
-    }
+  switch (_idType) {
+    case IdentifierType.username:
+      if (v.isEmpty) return 'Username is required';
+
+      // ✅ HARD length check first (prevents backend crash)
+      if (v.characters.length > 100) {
+        return 'Username cannot exceed 100 characters';
+      }
+
+      // ✅ Strong rules (existing logic)
+      final strongErr = _validateStrong(v, 'Username');
+      if (strongErr != null) return strongErr;
+
+      return null;
+
+    case IdentifierType.email:
+      if (v.isEmpty) return 'Email is required';
+      if (v.characters.length > kEmailMaxLen) {
+        return 'Email must be ≤ $kEmailMaxLen characters';
+      }
+      if (!_email.hasMatch(v)) return 'Enter a valid email address';
+      return null;
+
+    case IdentifierType.phone:
+      if (v.isEmpty) return 'Phone number is required';
+      if (!_digitsOnly.hasMatch(v)) return 'Enter digits only';
+      final r = _selectedRegion;
+      if (r == null) return 'Choose a country';
+      if (v.length < r.min || v.length > r.max) {
+        return 'Expected ${r.min}-${r.max} digits for ${r.name}.';
+      }
+      return null;
   }
+}
+
 
   // =============================================================
   // VALIDATION
@@ -778,66 +801,83 @@ String iso2ToFlagEmoji(String iso2) {
 }
   
   Future<void> _updateUserIdentity({
-    required String? userId,
-    required IdentifierType type,
-    required String identifier,
-    required String password,
-    String? countryCode,
-  }) async {
-    if (userId == null) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final response = await http.put(
-        Uri.parse('https://nodejs-production-f031.up.railway.app/api/user/update-identity'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'userID': userId,
-          'username': type == IdentifierType.username ? identifier : null,
-          'email': type == IdentifierType.email ? identifier : null,
-          'phone_number': type == IdentifierType.phone ? identifier : null,
-          'phone_country_code': type == IdentifierType.phone ? countryCode : null,
-          'password': password,
-        }),
-      );
-
-      // ✅ SUCCESS
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['ok'] == true) {
-          _showFinalSuccessDialog(identifier);
-          return;
-        }
-      }
-
-      // ✅ DUPLICATE — SAME AS SIGNUP
-      if (response.statusCode == 409) {
-        final data = jsonDecode(response.body);
-        final field = data['field'] ?? 'Identifier';
-        final message = data['message'] ??
-            '$field already in use. Please choose a different one.';
-        _showFeedback(message);
-        return;
-      }
-
-      // ❌ OTHER SERVER ERRORS
-      _showFeedback(
-        'Update failed (HTTP ${response.statusCode}). Please try again.',
-      );
-    } catch (e) {
-      _showFeedback('Connection error: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
+  required String? userId,
+  required IdentifierType type,
+  required String identifier,
+  required String password,
+  String? countryCode,
+}) async {
+  if (userId == null) {
+    debugPrint('❌ userId is null – aborting update');
+    return;
   }
+
+  // --- LOGIC: COUNT AND DETECT ---
+  final int passwordLength = password.characters.length;
+  debugPrint('--- [DEBUG: IDENTITY UPDATE] ---');
+  debugPrint('Target UserID: $userId');
+  debugPrint('Detected Password Length: $passwordLength');
+  
+  // 1. Client-Side Safety Guard
+  if (passwordLength > kPasswordMaxLen) {
+    debugPrint('🛑 STOP: Password is $passwordLength chars (Limit: $kPasswordMaxLen)');
+    _showFeedback('Local Error: Password ($passwordLength) exceeds limit ($kPasswordMaxLen).');
+    return;
+  }
+
+  final uri = Uri.parse('https://nodejs-production-f031.up.railway.app/api/user/update-identity');
+
+  final payload = {
+    'userID': userId,
+    'username': type == IdentifierType.username ? identifier : null,
+    'email': type == IdentifierType.email ? identifier : null,
+    'phone_number': type == IdentifierType.phone ? identifier : null,
+    'phone_country_code': type == IdentifierType.phone ? countryCode : null,
+    'password': password,
+  };
+
+  debugPrint('📤 SENDING PAYLOAD: ${jsonEncode(payload)}');
+  setState(() => _isLoading = true);
+
+  try {
+    final response = await http.put(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    debugPrint('📥 SERVER RESPONSE CODE: ${response.statusCode}');
+    debugPrint('📥 SERVER RESPONSE BODY: ${response.body}');
+
+    Map<String, dynamic>? data;
+    try {
+      data = jsonDecode(response.body);
+    } catch (e) {
+      debugPrint('⚠️ Response is NOT valid JSON');
+    }
+
+    if (response.statusCode == 200 && data?['ok'] == true) {
+      _showFinalSuccessDialog(identifier);
+    } else {
+      // 2. Map Backend Error (invalid_password_length)
+      String errorMsg = data?['message'] ?? 'An unknown error occurred.';
+      _showFeedback('Server Rejected: $errorMsg');
+    }
+
+  } catch (e) {
+    debugPrint('🔥 EXCEPTION: $e');
+    _showFeedback('Connection error: $e');
+  } finally {
+    setState(() => _isLoading = false);
+  }
+}
 
   void _showNewCredentialsDialog() {
     final TextEditingController idCtrl = TextEditingController();
     final TextEditingController passCtrl = TextEditingController();
     final dialogKey = GlobalKey<FormState>();
 
-    bool showPassword = false; // ✅ MUST live outside StatefulBuilder
+    bool showPassword = false; 
 
     showDialog(
       context: context,
@@ -868,32 +908,33 @@ String iso2ToFlagEmoji(String iso2) {
 
                     const SizedBox(height: 15),
 
-                    // ✅ PASSWORD FIELD WITH LOCK TOGGLE
+                    // ✅ UPDATED PASSWORD FIELD
+                    // Inside _showNewCredentialsDialog -> StatefulBuilder -> TextFormField for password
                     TextFormField(
                       controller: passCtrl,
                       obscureText: !showPassword,
+                      // PHYSICAL RESTRAINT:
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(kPasswordMaxLen), // 254
+                      ],
                       decoration: InputDecoration(
                         labelText: "New Password",
+                        counterText: "", // Hides the counter but still enforces the limit
                         border: const OutlineInputBorder(),
-
-                        // ✅ LOCK ICON CONTROLS VISIBILITY
                         prefixIcon: IconButton(
-                          icon: Icon(
-                            showPassword ? Icons.lock_open : Icons.lock,
-                          ),
-                          tooltip: showPassword
-                              ? "Hide password"
-                              : "Show password",
-                          onPressed: () {
-                            setStepState(() {
-                              showPassword = !showPassword;
-                            });
-                          },
+                          icon: Icon(showPassword ? Icons.lock_open : Icons.lock),
+                          onPressed: () => setStepState(() => showPassword = !showPassword),
                         ),
                       ),
-                      validator: (v) =>
-                          _validateStrong(v ?? '', 'Password'),
+                      validator: (v) {
+                        final value = v ?? '';
+                        if (value.characters.length > kPasswordMaxLen) {
+                          return 'Password too long (${value.characters.length}/$kPasswordMaxLen)';
+                        }
+                        return _validateStrong(value, 'Password');
+                      },
                     ),
+
                   ],
                 ),
               ),
@@ -905,6 +946,7 @@ String iso2ToFlagEmoji(String iso2) {
               ),
               ElevatedButton(
                 onPressed: () {
+                  // Only proceeds to API call if validation returns null
                   if (dialogKey.currentState!.validate()) {
                     Navigator.pop(context);
 
@@ -1051,7 +1093,12 @@ String iso2ToFlagEmoji(String iso2) {
           if (raw.length > kEmailMaxLen) return 'Email is too long';
         } else {
           // Username strength validation
+          // ✅ HARD length limit BEFORE sending to backend
+          if (raw.characters.length > 100) {
+            return 'Username cannot exceed 100 characters';
+          }
           return _validateStrong(raw, 'Username');
+
         }
         return null;
       },
