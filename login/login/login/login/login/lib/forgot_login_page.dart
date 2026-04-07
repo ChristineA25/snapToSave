@@ -23,8 +23,6 @@ import 'api_guard.dart'; // Ensure this matches your project structure
 
 import 'package:dropdown_search/dropdown_search.dart';
 
-import 'package:flutter/services.dart';
-
 class ForgotLoginPage extends StatefulWidget {
   const ForgotLoginPage({super.key});
 
@@ -329,25 +327,30 @@ String iso2ToFlagEmoji(String iso2) {
   final int b = base + (iso2.toUpperCase().codeUnitAt(1) - 0x41);
   return String.fromCharCodes([a, b]);
 }
-
+  
+  
 String? _validateStrong(String value, String label) {
-  final v = value;
-
-  // ✅ HARD MAX LENGTH GUARD (same pattern as username)
-  if (v.characters.length > kPasswordMaxLen) {
-    return '$label cannot exceed $kPasswordMaxLen characters.';
-  }
-
   final missing = <String>[];
 
-  if (v.characters.length < 8) missing.add('≥ 8 characters');
-  if (!_upper.hasMatch(v)) missing.add('an uppercase letter');
-  if (!_lower.hasMatch(v)) missing.add('a lowercase letter');
-  if (!_digit.hasMatch(v)) missing.add('a number');
-  if (!_symbol.hasMatch(v)) missing.add('a symbol');
+  if (value.characters.length < 8) {
+    missing.add('• at least 8 characters');
+  }
+  if (!_upper.hasMatch(value)) {
+    missing.add('• one uppercase letter (A–Z)');
+  }
+  if (!_lower.hasMatch(value)) {
+    missing.add('• one lowercase letter (a–z)');
+  }
+  if (!_digit.hasMatch(value)) {
+    missing.add('• one number (0–9)');
+  }
+  if (!_symbol.hasMatch(value)) {
+    missing.add('• one symbol (!@#\$%^&)');
+  }
 
   if (missing.isEmpty) return null;
-  return '$label must include ${missing.join(', ')}.';
+
+  return '$label must include:\n${missing.join('\n')}';
 }
   
 String? _validateIdentifier(String? value) {
@@ -801,83 +804,101 @@ String? _validateIdentifier(String? value) {
 }
   
   Future<void> _updateUserIdentity({
-  required String? userId,
-  required IdentifierType type,
-  required String identifier,
-  required String password,
-  String? countryCode,
-}) async {
-  if (userId == null) {
-    debugPrint('❌ userId is null – aborting update');
-    return;
-  }
+    required String? userId,
+    required IdentifierType type,
+    required String identifier,
+    required String password,
+    String? countryCode,
+  }) async {
+    if (userId == null) {
+      debugPrint('❌ userId is null – aborting update');
+      return;
+    }
 
-  // --- LOGIC: COUNT AND DETECT ---
-  final int passwordLength = password.characters.length;
-  debugPrint('--- [DEBUG: IDENTITY UPDATE] ---');
-  debugPrint('Target UserID: $userId');
-  debugPrint('Detected Password Length: $passwordLength');
-  
-  // 1. Client-Side Safety Guard
-  if (passwordLength > kPasswordMaxLen) {
-    debugPrint('🛑 STOP: Password is $passwordLength chars (Limit: $kPasswordMaxLen)');
-    _showFeedback('Local Error: Password ($passwordLength) exceeds limit ($kPasswordMaxLen).');
-    return;
-  }
-
-  final uri = Uri.parse('https://nodejs-production-f031.up.railway.app/api/user/update-identity');
-
-  final payload = {
-    'userID': userId,
-    'username': type == IdentifierType.username ? identifier : null,
-    'email': type == IdentifierType.email ? identifier : null,
-    'phone_number': type == IdentifierType.phone ? identifier : null,
-    'phone_country_code': type == IdentifierType.phone ? countryCode : null,
-    'password': password,
-  };
-
-  debugPrint('📤 SENDING PAYLOAD: ${jsonEncode(payload)}');
-  setState(() => _isLoading = true);
-
-  try {
-    final response = await http.put(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
+    final uri = Uri.parse(
+      'https://nodejs-production-f031.up.railway.app/api/user/update-identity',
     );
 
-    debugPrint('📥 SERVER RESPONSE CODE: ${response.statusCode}');
-    debugPrint('📥 SERVER RESPONSE BODY: ${response.body}');
+    final payload = {
+      'userID': userId,
+      'username': type == IdentifierType.username ? identifier : null,
+      'email': type == IdentifierType.email ? identifier : null,
+      'phone_number': type == IdentifierType.phone ? identifier : null,
+      'phone_country_code': type == IdentifierType.phone ? countryCode : null,
+      'password': password,
+    };
 
-    Map<String, dynamic>? data;
+    debugPrint('📤 UPDATE IDENTITY REQUEST');
+    debugPrint('URL: $uri');
+    debugPrint('Payload: ${jsonEncode(payload)}');
+
+    setState(() => _isLoading = true);
+
     try {
-      data = jsonDecode(response.body);
-    } catch (e) {
-      debugPrint('⚠️ Response is NOT valid JSON');
-    }
+      final response = await http.put(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
 
-    if (response.statusCode == 200 && data?['ok'] == true) {
-      _showFinalSuccessDialog(identifier);
-    } else {
-      // 2. Map Backend Error (invalid_password_length)
-      String errorMsg = data?['message'] ?? 'An unknown error occurred.';
-      _showFeedback('Server Rejected: $errorMsg');
-    }
+      debugPrint('📥 RESPONSE RECEIVED');
+      debugPrint('Status code: ${response.statusCode}');
+      debugPrint('Raw body: ${response.body}');
 
-  } catch (e) {
-    debugPrint('🔥 EXCEPTION: $e');
-    _showFeedback('Connection error: $e');
-  } finally {
-    setState(() => _isLoading = false);
+      Map<String, dynamic>? data;
+      try {
+        data = jsonDecode(response.body);
+        debugPrint('Parsed JSON: $data');
+      } catch (e) {
+        debugPrint('⚠️ Response is NOT valid JSON');
+      }
+
+      // ✅ SUCCESS
+      if (response.statusCode == 200 && data?['ok'] == true) {
+        debugPrint('✅ Identity update successful');
+        _showFinalSuccessDialog(identifier);
+        return;
+      }
+
+      // ⚠️ DUPLICATE VALUE (username/email/phone already used)
+      if (response.statusCode == 409) {
+        final field = data?['field'] ?? 'Identifier';
+        final message =
+            data?['message'] ?? '$field already in use. Choose another.';
+        debugPrint('⚠️ Conflict: $message');
+        _showFeedback(message);
+        return;
+      }
+
+      // ❌ SERVER ERROR (500 etc.)
+      debugPrint('❌ SERVER ERROR');
+      debugPrint('Message from server: ${data?['message'] ?? 'No message'}');
+
+      if (response.statusCode >= 500) {
+        _showFeedback(
+          'Server error. Please ensure your username is under 100 characters and try again.',
+        );
+        return;
+      }
+
+    } catch (e, stack) {
+      debugPrint('🔥 EXCEPTION DURING UPDATE');
+      debugPrint('Error: $e');
+      debugPrint('StackTrace: $stack');
+
+      _showFeedback('Connection error: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
-}
+
 
   void _showNewCredentialsDialog() {
     final TextEditingController idCtrl = TextEditingController();
     final TextEditingController passCtrl = TextEditingController();
     final dialogKey = GlobalKey<FormState>();
 
-    bool showPassword = false; 
+    bool showPassword = false; // ✅ MUST live outside StatefulBuilder
 
     showDialog(
       context: context,
@@ -908,33 +929,43 @@ String? _validateIdentifier(String? value) {
 
                     const SizedBox(height: 15),
 
-                    // ✅ UPDATED PASSWORD FIELD
-                    // Inside _showNewCredentialsDialog -> StatefulBuilder -> TextFormField for password
+                    // ✅ PASSWORD FIELD WITH LOCK TOGGLE
                     TextFormField(
                       controller: passCtrl,
                       obscureText: !showPassword,
-                      // PHYSICAL RESTRAINT:
-                      inputFormatters: [
-                        LengthLimitingTextInputFormatter(kPasswordMaxLen), // 254
-                      ],
                       decoration: InputDecoration(
                         labelText: "New Password",
-                        counterText: "", // Hides the counter but still enforces the limit
                         border: const OutlineInputBorder(),
+
+                        // ✅ LOCK ICON CONTROLS VISIBILITY
                         prefixIcon: IconButton(
-                          icon: Icon(showPassword ? Icons.lock_open : Icons.lock),
-                          onPressed: () => setStepState(() => showPassword = !showPassword),
+                          icon: Icon(
+                            showPassword ? Icons.lock_open : Icons.lock,
+                          ),
+                          tooltip: showPassword
+                              ? "Hide password"
+                              : "Show password",
+                          onPressed: () {
+                            setStepState(() {
+                              showPassword = !showPassword;
+                            });
+                          },
                         ),
                       ),
+                      
                       validator: (v) {
-                        final value = v ?? '';
-                        if (value.characters.length > kPasswordMaxLen) {
-                          return 'Password too long (${value.characters.length}/$kPasswordMaxLen)';
-                        }
-                        return _validateStrong(value, 'Password');
-                      },
-                    ),
+                          final value = (v ?? '');
 
+                          // ✅ HARD max-length check FIRST (frontend-only block)
+                          if (value.characters.length > kPasswordMaxLen) {
+                            return 'Password cannot exceed $kPasswordMaxLen characters';
+                          }
+
+                          // ✅ Existing strength rules
+                          return _validateStrong(value, 'Password');
+                        },
+
+                    ),
                   ],
                 ),
               ),
@@ -946,7 +977,6 @@ String? _validateIdentifier(String? value) {
               ),
               ElevatedButton(
                 onPressed: () {
-                  // Only proceeds to API call if validation returns null
                   if (dialogKey.currentState!.validate()) {
                     Navigator.pop(context);
 
