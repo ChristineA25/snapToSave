@@ -1227,7 +1227,7 @@ String? _validateIdentifier(String? value) {
           Text("Success"),
         ],
       ),
-      content: Text("Identity verified. This is the related phone number/email $confirmedValue. Click the button to return to login."),
+      content: Text("Identity verified. This is the related username/phone number/email $confirmedValue. Click the button to return to login."),
       actions: [
         TextButton(
           onPressed: () {
