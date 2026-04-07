@@ -352,23 +352,18 @@ String? _validateStrong(String value, String label) {
 
   return '$label must include:\n${missing.join('\n')}';
 }
-  
+
 String? _validateIdentifier(String? value) {
   final v = (value ?? '').trim();
 
   switch (_idType) {
     case IdentifierType.username:
       if (v.isEmpty) return 'Username is required';
-
-      // ✅ HARD length check first (prevents backend crash)
       if (v.characters.length > 100) {
         return 'Username cannot exceed 100 characters';
       }
-
-      // ✅ Strong rules (existing logic)
       final strongErr = _validateStrong(v, 'Username');
       if (strongErr != null) return strongErr;
-
       return null;
 
     case IdentifierType.email:
@@ -380,17 +375,39 @@ String? _validateIdentifier(String? value) {
       return null;
 
     case IdentifierType.phone:
-      if (v.isEmpty) return 'Phone number is required';
-      if (!_digitsOnly.hasMatch(v)) return 'Enter digits only';
-      final r = _selectedRegion;
-      if (r == null) return 'Choose a country';
-      if (v.length < r.min || v.length > r.max) {
-        return 'Expected ${r.min}-${r.max} digits for ${r.name}.';
+      if (v.isEmpty) {
+        debugPrint('[VALIDATE][PHONE] fail: empty');
+        return 'Phone number is required';
       }
+      if (!_digitsOnly.hasMatch(v)) {
+        debugPrint('[VALIDATE][PHONE] fail: non-digits -> "$v"');
+        return 'Enter digits only';
+      }
+
+      final r = _selectedRegion;
+      if (r == null) {
+        debugPrint('[VALIDATE][PHONE] fail: no region selected');
+        return 'Choose a country';
+      }
+
+      // ✅ UPDATED: Validates length against country-specific min/max
+      if (v.length < r.min || v.length > r.max) {
+        debugPrint(
+            '[VALIDATE][PHONE] fail: length ${v.length} not in [${r.min}, ${r.max}] for ${r.iso2}');
+        return 'Expected ${r.min}-${r.max} digits for ${r.name} (excluding country code).';
+      }
+
+      // ✅ Country code sanity check
+      final cc = _countryCodeCtrl.text.trim();
+      if (cc.isEmpty || !cc.startsWith('+')) {
+        debugPrint('[VALIDATE][PHONE] fail: bad country code "$cc"');
+        return 'Invalid country code';
+      }
+
+      debugPrint('[VALIDATE][PHONE] pass: local="$v" iso2=${r.iso2} cc=$cc');
       return null;
   }
 }
-
 
   // =============================================================
   // VALIDATION
