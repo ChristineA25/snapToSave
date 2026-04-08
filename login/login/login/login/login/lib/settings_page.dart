@@ -225,7 +225,6 @@ class _SettingsPageState extends State<SettingsPage> {
     return null;
   }
 
-
   String? _validateMoneyLoose(String? value, {String fieldName = 'Amount'}) {
     if (value == null || value.trim().isEmpty) return '$fieldName is required';
     final parsed = double.tryParse(value.trim());
@@ -350,6 +349,19 @@ class _SettingsPageState extends State<SettingsPage> {
     return true;
   }
 
+  void _resetHomeAddress() {
+    setState(() {
+      _homeAddressCtrl.clear();
+      _postcodeCtrl.clear();
+    });
+  }
+
+  void _resetWorkAddress() {
+    setState(() {
+      _workAddressCtrl.clear();
+      _workPostcodeCtrl.clear();
+    });
+  }
   
   // Add inside _SettingsPageState
   void _log(String tag, String msg, [Object? data]) {
@@ -1348,6 +1360,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
                   /* ── Home Address/Postcode (pick from map) ── */
                   const _SectionHeader(title: 'Home Address'),
+
                   Align(
                     alignment: Alignment.centerRight,
                     child: OutlinedButton.icon(
@@ -1356,19 +1369,33 @@ class _SettingsPageState extends State<SettingsPage> {
                       label: const Text('Pick from map'),
                     ),
                   ),
+
                   const SizedBox(height: 8),
+
                   TextField(
                     controller: _homeAddressCtrl,
                     readOnly: true,
-                    
                     decoration: const InputDecoration(
                       labelText: 'Home Address (auto from map)',
                       hintText: 'Select from map to fill',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.home_outlined),
                     ),
-                    
                   ),
+
+                  const SizedBox(height: 6),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: _homeAddressCtrl.text.isEmpty ? null : _resetHomeAddress,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reset address'),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
                   /*
                   const SizedBox(height: 8),
                   TextFormField(
@@ -1386,6 +1413,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
                   /* ── Work Address/Postcode (pick from map) ── */
                   const _SectionHeader(title: 'Workplace Address'),
+
                   Align(
                     alignment: Alignment.centerRight,
                     child: OutlinedButton.icon(
@@ -1394,8 +1422,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       label: const Text('Pick from map'),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 8),
+
                   TextField(
                     controller: _workAddressCtrl,
                     readOnly: true,
@@ -1406,6 +1435,20 @@ class _SettingsPageState extends State<SettingsPage> {
                       prefixIcon: Icon(Icons.work_outline),
                     ),
                   ),
+
+                  const SizedBox(height: 6),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: _workAddressCtrl.text.isEmpty ? null : _resetWorkAddress,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reset address'),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
   /*
                   const SizedBox(height: 8),
                   TextFormField(
