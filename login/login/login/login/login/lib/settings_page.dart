@@ -1924,27 +1924,20 @@ class _SettingsPageState extends State<SettingsPage> {
   /* ─────────────────────────────── Save flow ──────────────────────────────── */  
   Future<void> _handleSave() async {
     // ─────────────────────────────────────────
-    // 1. Read current text values
+    // 1. Read values safely
     // ─────────────────────────────────────────
     final salaryText = _salaryCtrl.text.trim();
     final savingText = _targetSavingCtrl.text.trim();
 
-    final savedSalaryText =
-        _salary == null ? '' : _salary!.toStringAsFixed(2);
-    final savedSavingText =
-        _targetSaving == null ? '' : _targetSaving!.toStringAsFixed(2);
-
-    // Detect per‑field changes
-    final salaryChanged = salaryText != savedSalaryText;
-    final savingChanged = savingText != savedSavingText;
-
-    double? parsedSalary;
-    double? parsedSaving;
+    final double? parsedSalary =
+        salaryText.isEmpty ? _salary : double.tryParse(salaryText);
+    final double? parsedSaving =
+        savingText.isEmpty ? _targetSaving : double.tryParse(savingText);
 
     // ─────────────────────────────────────────
-    // 2. Validate ONLY changed finance fields
+    // 2. Validate finance ONLY if user provided input
     // ─────────────────────────────────────────
-    if (salaryChanged) {
+    if (salaryText.isNotEmpty) {
       final err =
           _validateMoneyLoose(salaryText, fieldName: 'Salary');
       if (err != null) {
@@ -1952,10 +1945,9 @@ class _SettingsPageState extends State<SettingsPage> {
             .showSnackBar(SnackBar(content: Text(err)));
         return;
       }
-      parsedSalary = double.tryParse(salaryText);
     }
 
-    if (savingChanged) {
+    if (savingText.isNotEmpty) {
       final err =
           _validateMoneyLoose(savingText, fieldName: 'Saving');
       if (err != null) {
@@ -1963,18 +1955,14 @@ class _SettingsPageState extends State<SettingsPage> {
             .showSnackBar(SnackBar(content: Text(err)));
         return;
       }
-      parsedSaving = double.tryParse(savingText);
     }
 
     // ─────────────────────────────────────────
-    // 3. Cross‑field check ONLY if both exist
+    // 3. Cross‑field rule (only if both exist)
     // ─────────────────────────────────────────
-    final effectiveSalary = parsedSalary ?? _salary;
-    final effectiveSaving = parsedSaving ?? _targetSaving;
-
-    if (effectiveSalary != null &&
-        effectiveSaving != null &&
-        effectiveSaving >= effectiveSalary) {
+    if (parsedSalary != null &&
+        parsedSaving != null &&
+        parsedSaving >= parsedSalary) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Target saving must be less than salary'),
@@ -1984,7 +1972,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
 
     // ─────────────────────────────────────────
-    // 4. Always allow address / other fields
+    // 4. Address values (always allowed)
     // ─────────────────────────────────────────
     final homeAddr = _homeAddressCtrl.text.trim();
     final workAddr = _workAddressCtrl.text.trim();
@@ -2001,11 +1989,14 @@ class _SettingsPageState extends State<SettingsPage> {
         body: jsonEncode({
           'userID': widget.userId,
 
-          // ✅ Send ONLY changed finance fields
-          if (salaryChanged) 'monthlySalary': salaryText,
-          if (savingChanged) 'targetMonthlySaving': savingText,
+          // ✅ ALWAYS send finance if we have a value
+          if (parsedSalary != null)
+            'monthlySalary': parsedSalary.toStringAsFixed(2),
 
-          // ✅ Always send address data
+          if (parsedSaving != null)
+            'targetMonthlySaving': parsedSaving.toStringAsFixed(2),
+
+          // ✅ Always send addresses
           'homeAdd': homeAddr,
           'workAdd': workAddr,
           'homeAddCode': homePostcode,
@@ -2018,13 +2009,14 @@ class _SettingsPageState extends State<SettingsPage> {
           const SnackBar(content: Text('Settings saved')),
         );
 
+        // ✅ Side‑effect saves
         await _saveUserAllergens();
         await _saveUserBlacklist();
         await _saveDisplayTime();
 
-        // Update local saved state
-        if (salaryChanged) _salary = parsedSalary;
-        if (savingChanged) _targetSaving = parsedSaving;
+        // ✅ Persist local state
+        _salary = parsedSalary;
+        _targetSaving = parsedSaving;
 
         _snapshotCurrentAsSaved();
       } else {
@@ -2040,9 +2032,6 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) setState(() => _savingSettings = false);
     }
   }
-
-
-
 
   /* ─────────────────────────────── Logout flow ─────────────────────────────── */
   Future<void> _handleLogoutWithOptionalSave() async {
