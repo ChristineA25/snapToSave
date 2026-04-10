@@ -185,21 +185,43 @@ class _BuyingHistoryPageState extends State<BuyingHistoryPage> {
 
   Future<double> _fetchOffsetForRegion(String isoCode) async {
     if (isoCode.isEmpty) return 0.0;
+    const tag = 'OFFSET_FETCH';
     try {
-      const url = 'https://nodejs-production-53a4.up.railway.app/phone/regions/with-sites?timeoutMs=20000&concurrency=4&overallMs=90000';
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      // 1. Increased timeout and optimized query parameters for the endpoint
+      // We increase the server-side timeout to 30s and the local timeout to 45s
+      const url = 'https://nodejs-production-53a4.up.railway.app/phone/regions/with-sites?timeoutMs=30000&concurrency=24&overallMs=90000';
+      
+      debugPrint('[$tag] Fetching offset for region: $isoCode');
+      
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 45));
+      
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
         final List rows = data['rows'] ?? [];
+        
+        // 2. Find the region by ID (case-insensitive)
         final region = rows.firstWhere(
-          (r) => _asString(r['regionID']).toLowerCase() == isoCode,
+          (r) => _asString(r['regionID']).toLowerCase() == isoCode.toLowerCase(),
           orElse: () => null,
         );
-        if (region != null) return _asDouble(region['offsetHrsVsUtc']);
+
+        if (region != null) {
+          // 3. Extract offset using the existing _asDouble helper
+          final offset = _asDouble(region['offsetHrsVsUtc']);
+          debugPrint('[$tag] Found offset for $isoCode: $offset');
+          return offset;
+        } else {
+          debugPrint('[$tag] Region $isoCode not found in list');
+        }
+      } else {
+        debugPrint('[$tag] Server returned status: ${res.statusCode}');
       }
     } catch (e) {
-      debugPrint("Error fetching region offset: $e");
+      // This catches the TimeoutException and logs it properly
+      debugPrint("[$tag] Error fetching region offset: $e");
     }
+    
+    // Fallback to 0.0 (UTC) if the fetch fails or times out
     return 0.0;
   }
 
