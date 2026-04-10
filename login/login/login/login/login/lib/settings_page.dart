@@ -749,6 +749,13 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
 
+  int _countVisibleSelectedBlacklistItems() {
+    return _selectedBlacklistIds.where((id) {
+      final it = _itemLookup[id];
+      return it != null && it.name.isNotEmpty;
+    }).length;
+  }
+
   static const int _maxCustomAllergenLen = 16382;
   void _addCustomAllergen() {
     final name = _customAllergenNameCtrl.text.trim();
@@ -1756,8 +1763,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Selected: ${_selectedBlacklistIds.length}',
-                          style: Theme.of(context).textTheme.bodyMedium),
+                      
+                      Text(
+                        'Selected: ${_countVisibleSelectedBlacklistItems()}',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+
                       TextButton.icon(
                         onPressed: _selectedBlacklistIds.isEmpty
                             ? null
@@ -1767,6 +1778,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ],
                   ),
+                  
                   if (_selectedBlacklistIds.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Card(
@@ -1780,72 +1792,92 @@ class _SettingsPageState extends State<SettingsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Selected items (preview)',
-                                style: Theme.of(context).textTheme.titleSmall),
+                            Text(
+                              'Selected items (preview)',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
                             const SizedBox(height: 8),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 260),
-                              child: Scrollbar(
-                                child: ListView.separated(
-                                  itemCount: _selectedBlacklistIds.length,
-                                  separatorBuilder: (_, __) => const Divider(height: 1),
-                                  itemBuilder: (context, index) {
-                                    final ids =
-                                        _selectedBlacklistIds.toList()..sort();
-                                    final id = ids[index];
-                                    final it = _itemLookup[id];
-                                    final hasDetails = it != null;
-                                    final subtitleLines = <String>[
-                                      if (hasDetails && it!.brand.isNotEmpty)
-                                        'Brand: ${it.brand}',
-                                      if (hasDetails && it!.quantity.isNotEmpty)
-                                        'Qty: ${it.quantity}',
-                                      if (hasDetails && it!.feature.isNotEmpty)
-                                        'Feature: ${it.feature}',
-                                      if (hasDetails && it!.productColor.isNotEmpty)
-                                        'Colour: ${it.productColor}',
-                                      if (!hasDetails)
-                                        'Details unavailable yet — run a search to populate.',
-                                    ];
-                                    Widget leading;
-                                    if (hasDetails && it!.picWebsite.isNotEmpty) {
-                                      leading = ClipRRect(
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: Image.network(
-                                          it.picWebsite,
-                                          width: 48,
-                                          height: 48,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
-                                              const Icon(Icons.image_not_supported),
-                                        ),
-                                      );
-                                    } else {
-                                      leading = const CircleAvatar(
-                                        radius: 24,
-                                        child: Icon(Icons.image_not_supported),
-                                      );
-                                    }
-                                    return ListTile(
-                                      leading: leading,
-                                      title: Text(
-                                        hasDetails && it!.name.isNotEmpty
-                                            ? it.name
-                                            : '(name unavailable)',
-                                      ),
-                                      subtitle: subtitleLines.isEmpty
-                                          ? null
-                                          : Text(subtitleLines.join(' • ')),
-                                    );
-                                  },
-                                ),
-                              ),
+
+                            /// ✅ Build filtered preview list
+                            Builder(
+                              builder: (_) {
+                                final previewIds = _selectedBlacklistIds
+                                    .where((id) {
+                                      final it = _itemLookup[id];
+                                      return it != null && it.name.isNotEmpty;
+                                    })
+                                    .toList()
+                                  ..sort();
+
+                                if (previewIds.isEmpty) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: Text(
+                                      'No items with available names to preview.',
+                                      style: TextStyle(color: Colors.black54),
+                                    ),
+                                  );
+                                }
+
+                                return ConstrainedBox(
+                                  constraints: const BoxConstraints(maxHeight: 260),
+                                  child: Scrollbar(
+                                    child: ListView.separated(
+                                      itemCount: previewIds.length,
+                                      separatorBuilder: (_, __) =>
+                                          const Divider(height: 1),
+                                      itemBuilder: (context, index) {
+                                        final id = previewIds[index];
+                                        final it = _itemLookup[id]!;
+
+                                        final subtitleLines = [
+                                          if (it.brand.isNotEmpty)
+                                            'Brand: ${it.brand}',
+                                          if (it.quantity.isNotEmpty)
+                                            'Qty: ${it.quantity}',
+                                          if (it.feature.isNotEmpty)
+                                            'Feature: ${it.feature}',
+                                          if (it.productColor.isNotEmpty)
+                                            'Colour: ${it.productColor}',
+                                        ];
+
+                                        final leading = it.picWebsite.isNotEmpty
+                                            ? ClipRRect(
+                                                borderRadius: BorderRadius.circular(6),
+                                                child: Image.network(
+                                                  it.picWebsite,
+                                                  width: 48,
+                                                  height: 48,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      const Icon(Icons.image_not_supported),
+                                                ),
+                                              )
+                                            : const CircleAvatar(
+                                                radius: 24,
+                                                child:
+                                                    Icon(Icons.image_not_supported),
+                                              );
+
+                                        return ListTile(
+                                          leading: leading,
+                                          title: Text(it.name), // ✅ always valid now
+                                          subtitle: subtitleLines.isEmpty
+                                              ? null
+                                              : Text(subtitleLines.join(' • ')),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
                       ),
                     ),
                   ],
+
                   const SizedBox(height: 32),
 
                   // ▼ NEW: Region & Timezone dropdown — placed below Blacklist and above Save
