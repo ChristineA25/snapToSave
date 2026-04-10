@@ -377,9 +377,6 @@ class _SettingsPageState extends State<SettingsPage> {
     // salary/target/postcodes/addresses already reflected on successful load/save
   }
 
-  // 1. Add this variable to your persisted values section
-  String? _lastSavedRegionId;
-
   bool _hasUnsavedChanges() {
   // 1. Normalize current inputs from controllers
   final currentSalary = double.tryParse(_salaryCtrl.text.trim()) ?? 0.0;
@@ -409,10 +406,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final allergensChanged = !_setsEqual(_selectedAllergenIds, _savedAllergensSnapshot);
   final blacklistChanged = !_setsEqual(_selectedBlacklistIds, _savedBlacklistSnapshot);
 
-  // NEW: Check if the Display Time (Region) changed
-  final regionChanged = _selectedRegionId != _lastSavedRegionId;
-
-  return fieldsChanged || allergensChanged || blacklistChanged || regionChanged;
+  return fieldsChanged || allergensChanged || blacklistChanged;
 }
 
   Future<String?> _confirmSaveBeforeLeave({required String leavingAction}) {
@@ -1240,36 +1234,25 @@ class _SettingsPageState extends State<SettingsPage> {
         appBar: AppBar(
           title: const Text('Settings'),
           
-          // lib/settings_page.dart
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () async {
-              // 1. If no changes, just leave immediately
+              if (!mounted) return;
+
               if (!_hasUnsavedChanges()) {
                 Navigator.of(context).pop();
                 return;
               }
 
-              // 2. Ask the user if they want to save their changes
-              final choice = await _confirmSaveBeforeLeave(leavingAction: 'going back');
+              final choice = await _confirmSaveBeforeLeave(leavingAction: "going back");
 
               if (choice == 'save') {
-                // 3. Try to save. _handleSave() includes your form validation.
                 await _handleSave();
-                
                 if (!mounted) return;
-
-                // 4. THE FIX: Only close the page if the save succeeded.
-                // If validation failed, _hasUnsavedChanges() will still be TRUE,
-                // so we won't pop the page, allowing the user to see the errors.
-                if (!_hasUnsavedChanges()) {
-                  Navigator.of(context).pop();
-                }
+                Navigator.of(context).pop();            // ← only pop once
               } else if (choice == 'discard') {
-                // User chose to ignore changes, so we leave.
-                Navigator.of(context).pop();
+                Navigator.of(context).pop();            // ← direct pop; no double press
               }
-              // If choice is null (Cancel), we do nothing and stay on the page.
             },
           ),
 
@@ -1972,74 +1955,111 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /* ─────────────────────────────── Save flow ──────────────────────────────── */  
   Future<void> _handleSave() async {
-    // 1. Validation: Check if salary fields are empty before attempting to save
-    if (_salaryCtrl.text.trim().isEmpty || _targetSavingCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Salary/Saving is required.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-      return; // Stop execution if fields are empty
+    // ─────────────────────────────────────────
+    // 1. Read values safely
+    // ─────────────────────────────────────────
+    final salaryText = _salaryCtrl.text.trim();
+    final savingText = _targetSavingCtrl.text.trim();
+
+    final double? parsedSalary =
+        salaryText.isEmpty ? _salary : double.tryParse(salaryText);
+    final double? parsedSaving =
+        savingText.isEmpty ? _targetSaving : double.tryParse(savingText);
+
+    // ─────────────────────────────────────────
+    // 2. Validate finance ONLY if user provided input
+    // ─────────────────────────────────────────
+    if (salaryText.isNotEmpty) {
+      final err =
+          _validateMoneyLoose(salaryText, fieldName: 'Salary');
+      if (err != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(err)));
+        return;
+      }
     }
 
+    if (savingText.isNotEmpty) {
+      final err =
+          _validateMoneyLoose(savingText, fieldName: 'Saving');
+      if (err != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(err)));
+        return;
+      }
+    }
+
+    // ─────────────────────────────────────────
+    // 3. Cross‑field rule (only if both exist)
+    // ─────────────────────────────────────────
+    if (parsedSalary != null &&
+        parsedSaving != null &&
+        parsedSaving >= parsedSalary) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Target saving must be less than salary'),
+        ),
+      );
+      return;
+    }
+
+    // ─────────────────────────────────────────
+    // 4. Address values (always allowed)
+    // ─────────────────────────────────────────
+    final homeAddr = _homeAddressCtrl.text.trim();
+    final workAddr = _workAddressCtrl.text.trim();
+    final homePostcode = _postcodeCtrl.text.trim().toUpperCase();
+    final workPostcode = _workPostcodeCtrl.text.trim().toUpperCase();
+
     setState(() => _savingSettings = true);
+
     try {
-      final sValue = double.tryParse(_salaryCtrl.text.trim());
-      final tValue = double.tryParse(_targetSavingCtrl.text.trim());
-      
-      // Existing logic to handle the API payload
-      final body = {
-        'userID': widget.userId,
-        'monthlySalary': sValue,
-        'targetMonthlySaving': tValue,
-        'homeAdd': _homeAddressCtrl.text.trim(),
-        'homeAddCode': _postcodeCtrl.text.trim().toUpperCase(),
-        'workAdd': _workAddressCtrl.text.trim(),
-        'workAddCode': _workPostcodeCtrl.text.trim().toUpperCase(),
-      };
-
-      final primary = Uri.parse('$_kUserApiBase/api/user/settings');
-      final secondary = Uri.parse('$_kDataApiBase/api/user/settings');
-
       final resp = await _putWithFallback(
-        primary,
-        secondary: secondary,
+        Uri.parse('$_kUserApiBase/api/user/settings'),
+        secondary: Uri.parse('$_kDataApiBase/api/user/settings'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
+        body: jsonEncode({
+          'userID': widget.userId,
+
+          // ✅ ALWAYS send finance if we have a value
+          if (parsedSalary != null)
+            'monthlySalary': parsedSalary.toStringAsFixed(2),
+
+          if (parsedSaving != null)
+            'targetMonthlySaving': parsedSaving.toStringAsFixed(2),
+
+          // ✅ Always send addresses
+          'homeAdd': homeAddr,
+          'workAdd': workAddr,
+          'homeAddCode': homePostcode,
+          'workAddCode': workPostcode,
+        }),
       );
 
       if (resp.statusCode == 200) {
-        // Update local state variables to match the snapshot
-        _salary = sValue;
-        _targetSaving = tValue;
-        _homeAddress = body['homeAdd'] as String?;
-        _workAddress = body['workAdd'] as String?;
-        _postcode = body['homeAddCode'] as String?;
-        _workPostcode = body['workAddCode'] as String?;
-        
-        // Save allergens, blacklist, and display time
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Settings saved')),
+        );
+
+        // ✅ Side‑effect saves
         await _saveUserAllergens();
         await _saveUserBlacklist();
         await _saveDisplayTime();
-        
-        _snapshotCurrentAsSaved();
-        _lastSavedRegionId = _selectedRegionId;
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Settings saved successfully')),
-          );
-        }
+        // ✅ Persist local state
+        _salary = parsedSalary;
+        _targetSaving = parsedSaving;
+
+        _snapshotCurrentAsSaved();
       } else {
-        throw Exception('Failed to save settings (HTTP ${resp.statusCode})');
-      }
-    } catch (e) {
-      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(content: Text('Save failed (${resp.statusCode})')),
         );
       }
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Network error saving settings')),
+      );
     } finally {
       if (mounted) setState(() => _savingSettings = false);
     }
