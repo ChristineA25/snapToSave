@@ -1035,13 +1035,11 @@ class _TileWithImageState extends State<_TileWithImage> {
   @override
   void initState() {
     super.initState();
-    // Wait for the UI to settle so the Parent State is fully initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _resolveImage();
     });
   }
   
-  // Also add this to handle updates if the item changes (e.g. during search)
   @override
   void didUpdateWidget(_TileWithImage oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1052,7 +1050,6 @@ class _TileWithImageState extends State<_TileWithImage> {
     }
   }
 
-  
   Future<void> _resolveImage() async {
     if (_loaded) return;
     _loaded = true;
@@ -1063,12 +1060,9 @@ class _TileWithImageState extends State<_TileWithImage> {
 
     if (media != null) {
       final id = (widget.item.itemId ?? '').trim();
-
       if (id.isNotEmpty) {
-        // STRICT: Resolve strictly by itemID; do not fall back to name/brand.
         url = await media.picFor(itemId: id, idOnlyWhenIdPresent: true);
       } else {
-        // Only when there is truly no itemID do we allow a text-based lookup.
         final cleanName = (widget.item.rawItemName ?? '').trim();
         final brand = widget.item.brand.trim();
         if (cleanName.isNotEmpty) {
@@ -1076,7 +1070,7 @@ class _TileWithImageState extends State<_TileWithImage> {
             itemId: null,
             name: cleanName,
             brand: brand,
-            idOnlyWhenIdPresent: true, // harmless here; no id anyway
+            idOnlyWhenIdPresent: true,
           );
         }
       }
@@ -1087,11 +1081,26 @@ class _TileWithImageState extends State<_TileWithImage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final hasSuggestion = widget.suggestions.isNotEmpty;
+
+    // --- LOGIC FOR FEATURE FALLBACK ---
+    // Check if the bought item has a valid feature.
+    final rawF = (widget.item.rawFeature ?? '').trim();
+    final hasValidFeature = rawF.isNotEmpty && rawF.toLowerCase() != 'null';
+    
+    // If not, try to grab the feature from the first suggestion (the 'picture item').
+    String? displayFeature;
+    if (hasValidFeature) {
+      displayFeature = widget.item.rawFeature;
+    } else if (hasSuggestion) {
+      final suggestedFeature = (widget.suggestions.first.feature ?? '').trim();
+      if (suggestedFeature.isNotEmpty && suggestedFeature.toLowerCase() != 'null') {
+        displayFeature = suggestedFeature;
+      }
+    }
 
     return ListTile(
       leading: (_picUrl == null)
@@ -1146,10 +1155,10 @@ class _TileWithImageState extends State<_TileWithImage> {
                   icon: Icons.schedule,
                   color: colorScheme.outline,
                 ),
-                if ((widget.item.rawFeature ?? '').isNotEmpty &&
-                    (widget.item.rawFeature ?? '').toLowerCase() != 'null')
+                // UPDATED PILL: Uses the displayFeature resolved above
+                if (displayFeature != null)
                   _Pill(
-                    text: widget.item.rawFeature!,
+                    text: displayFeature,
                     icon: Icons.style,
                     color: Colors.deepPurple,
                   ),
