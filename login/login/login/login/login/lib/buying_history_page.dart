@@ -425,88 +425,6 @@ class _BuyingHistoryPageState extends State<BuyingHistoryPage> {
       // Leave _allergenWords empty on failure.
     }
   }
-  
-  bool _isBlacklistedExpanded({
-    String? itemId,
-    required String title,
-    String? brand,
-    String? feature,
-    String? quantity,
-  }) {
-    // -------------------------
-    // 1. Direct itemId match
-    // -------------------------
-    if (itemId != null && itemId.isNotEmpty) {
-      if (_blacklistedItemIds.contains(itemId)) {
-        return true;
-      }
-    }
-
-    // -------------------------
-    // 2. Normalise current item text
-    // -------------------------
-    String norm(String? s) {
-      return (s ?? '')
-          .toLowerCase()
-          .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .trim();
-    }
-
-    final currentName = norm(title);
-    final currentBrand = norm(brand);
-    final currentFeature = norm(feature);
-    final currentQty = norm(quantity);
-
-    // -------------------------
-    // 3. Compare against every blacklisted catalog item
-    // -------------------------
-    for (final blackId in _blacklistedItemIds) {
-      final entry = _itemsById[blackId];
-      if (entry == null) continue;
-
-      final blackName = norm(entry.name);
-      final blackBrand = norm(entry.brand);
-      final blackFeature = norm(entry.feature);
-      final blackQty = norm(entry.quantity);
-
-      // -------------------------
-      // 4. Strong semantic matching rules
-      // -------------------------
-
-      // ✅ Name / family match (core rule)
-      if (blackName.isNotEmpty &&
-          (currentName.contains(blackName) ||
-          blackName.contains(currentName))) {
-        return true;
-      }
-
-      // ✅ Brand match (when brand exists)
-      if (blackBrand.isNotEmpty &&
-          currentBrand.isNotEmpty &&
-          blackBrand == currentBrand) {
-        return true;
-      }
-
-      // ✅ Feature match (e.g. aromatic, travel pack)
-      if (blackFeature.isNotEmpty &&
-          currentFeature.isNotEmpty &&
-          (currentFeature.contains(blackFeature) ||
-          blackFeature.contains(currentFeature))) {
-        return true;
-      }
-
-      // ✅ Quantity match (kg/g/ml variants)
-      if (blackQty.isNotEmpty &&
-          currentQty.isNotEmpty &&
-          currentQty.contains(blackQty)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
 
   bool _textHasAllergen(String text) {
     if (_allergenWords.isEmpty) return false;
@@ -536,8 +454,7 @@ class _BuyingHistoryPageState extends State<BuyingHistoryPage> {
   
 // buying_history_page.dart  (inside _BuyingHistoryPageState)
 // REPLACE the whole _suggestFromPriceData with this distance-aware version.
-// buying_history_page.dart (inside _BuyingHistoryPageState)
-// UPDATED: Now strictly filters out any item present in the user's blacklist.
+
 List<Alternative> _suggestFromPriceData(Purchase purchase) {
   final List<Alternative> suggestions = [];
 
@@ -547,7 +464,7 @@ List<Alternative> _suggestFromPriceData(Purchase purchase) {
   final currentChain = (purchase.chainShopId ?? '').toLowerCase().trim();
   final currentStoreName = purchase.store.toLowerCase().trim();
 
-  // Catalog & PPU for the purchased item
+  // Catalog & PPU for the purchased item (unchanged)
   final cat = (id.isNotEmpty) ? _itemsById[id] : null;
   final currentPPU = _pricePerUnit(
     price: currentPrice,
@@ -559,16 +476,13 @@ List<Alternative> _suggestFromPriceData(Purchase purchase) {
   bool _isSameStore(PriceEntry p) {
     final sc = p.shopCode.toLowerCase();
     final sid = p.shopId.toLowerCase();
-    return sc == currentChain ||
-        sid == currentChain ||
-        (currentChain.isEmpty && currentStoreName.contains(sc));
+    return sc == currentChain || sid == currentChain || (currentChain.isEmpty && currentStoreName.contains(sc));
   }
 
   Alternative _altFrom(PriceEntry p, ItemCatalogEntry base) {
     final q = base.quantity ?? purchase.quantity ?? '';
     final f = base.feature ?? purchase.rawFeature ?? '';
-    final ppu = _pricePerUnit(
-        price: p.effectivePrice, quantity: q, fallbackQuantity: q);
+    final ppu = _pricePerUnit(price: p.effectivePrice, quantity: q, fallbackQuantity: q);
     final title = _composeTitle(base.name, f, q);
     return Alternative(
       productName: title,
@@ -586,20 +500,18 @@ List<Alternative> _suggestFromPriceData(Purchase purchase) {
     );
   }
 
-  // --- allergen/blacklist guards --------------------------------------------
+  // --- allergen/blacklist guards (preserved) --------------------------------
   bool _candidateIsAllergen(ItemCatalogEntry base) => _entryHasAllergen(base);
   bool _candidateTitleIsAllergen(String title) => _titleHasAllergen(title);
-
-  // Helper to check if an ID is blacklisted
   bool _isBlacklistedId(String? itemId) {
     if (itemId == null || itemId.isEmpty) return false;
     return _blacklistedItemIds.contains(itemId);
   }
-
   final purchasedIsBlacklisted = _isBlacklistedId(id);
 
-  // --- Distance check helper -------------------------------------------------
+  // --- NEW: distance screen --------------------------------------------------
   bool _maybeAllowedByDistance(Alternative alt) {
+    // First consult cache (sync). If null, kick async compute and allow for now.
     final cached = _distance.cachedAllowFor(
       shopAddress: alt.shopAddress,
       channel: alt.channel,
@@ -607,32 +519,24 @@ List<Alternative> _suggestFromPriceData(Purchase purchase) {
     );
     if (cached == null) {
       _distance
-          .allowFor(
-              shopAddress: alt.shopAddress,
-              channel: alt.channel,
-              thresholdMin: 30)
-          .then((_) {
-        if (mounted) setState(() {});
-      });
-      return true; 
+          .allowFor(shopAddress: alt.shopAddress, channel: alt.channel, thresholdMin: 30)
+          .then((_) { if (mounted) setState(() {}); });
+      return true; // optimistic until computed; UI will refresh when done
     }
     return cached;
   }
 
   // ========== RECOMMENDATION 1: same item cheaper elsewhere ==================
-  // Only proceed if the purchased item itself is not blacklisted
+  // Only if we know the ID and the purchased item itself is not blacklisted
   if (id.isNotEmpty && !purchasedIsBlacklisted) {
-    final base = _itemsById[id] ??
-        ItemCatalogEntry(
-          id: id,
-          name: purchase.productName,
-          brand: purchase.brand,
-          quantity: purchase.quantity,
-          feature: purchase.rawFeature,
-        );
-
-    final renderedTitle =
-        _composeTitle(base.name, base.feature ?? '', base.quantity ?? '');
+    final base = _itemsById[id] ?? ItemCatalogEntry(
+      id: id,
+      name: purchase.productName,
+      brand: purchase.brand,
+      quantity: purchase.quantity,
+      feature: purchase.rawFeature,
+    );
+    final renderedTitle = _composeTitle(base.name, base.feature ?? '', base.quantity ?? '');
     final safeFromAllergen =
         !_candidateIsAllergen(base) && !_candidateTitleIsAllergen(renderedTitle);
 
@@ -641,58 +545,101 @@ List<Alternative> _suggestFromPriceData(Purchase purchase) {
       for (final c in candidates) {
         if (c.effectivePrice < currentPrice && !_isSameStore(c)) {
           final alt = _altFrom(c, base);
-          // FIX: Added check to ensure the alternative item ID is not blacklisted
           if (!_isBlacklistedId(alt.itemId) &&
               !_candidateTitleIsAllergen(alt.productName) &&
               _maybeAllowedByDistance(alt)) {
             suggestions.add(alt);
-            break; // best same-item suggestion
+            break; // best same-item suggestion (sorted in _fetchPrices)
           }
         }
       }
     }
   }
 
-  // ========== RECOMMENDATION 2: better alternatives (same family) ============
-  // Only proceed if we have family data and we haven't found a better option yet
-  final fam = _familyByItemId[id];
-  if (suggestions.isEmpty && fam != null) {
-    final siblings = _itemIdsByFamily[fam.family] ?? []; //
-    final List<Alternative> crossStoreAlts = [];
+  // ========== RECOMMENDATION 2: same name lower PPU (different ID) ==========
+  final nameKey = _nameKey(purchase.rawItemName ?? purchase.productName);
+  final sameNameIds = _itemIdsByNameKey[nameKey] ?? const <String>[];
+  final List<Alternative> sameNameAlts = [];
+  for (final otherId in sameNameIds) {
+    if (otherId == id) continue; // want different item id
+    if (_isBlacklistedId(otherId)) continue;
+    final otherCat = _itemsById[otherId];
+    final entries = _pricesByItemId[otherId];
+    if (otherCat == null || entries == null || entries.isEmpty) continue;
+    if (_candidateIsAllergen(otherCat)) continue;
 
-    for (final sId in siblings) {
-      // FIX: Strictly skip any sibling item that is in the blacklist
-      if (_isBlacklistedId(sId)) continue;
-
-      final sBase = _itemsById[sId];
-      if (sBase == null) continue;
-
-      if (_candidateIsAllergen(sBase) ||
-          _candidateTitleIsAllergen(
-              _composeTitle(sBase.name, sBase.feature ?? '', sBase.quantity ?? ''))) {
-        continue;
+    for (final p in entries) {
+      if (_isSameStore(p)) continue; // different source
+      final q = otherCat.quantity ?? purchase.quantity;
+      final ppu = _pricePerUnit(price: p.effectivePrice, quantity: q, fallbackQuantity: q);
+      if (ppu < currentPPU) {
+        final alt = _altFrom(p, otherCat);
+        if (!_isBlacklistedId(alt.itemId) &&
+            !_candidateTitleIsAllergen(alt.productName) &&
+            _maybeAllowedByDistance(alt)) {
+          sameNameAlts.add(alt);
+        }
       }
+    }
+  }
+  if (sameNameAlts.isNotEmpty) {
+    sameNameAlts.sort((a, b) =>
+        (a.ppu ?? double.infinity).compareTo(b.ppu ?? double.infinity));
+    suggestions.add(sameNameAlts.first);
+  }
 
-      final sPrices = _pricesByItemId[sId] ?? [];
-      for (final sp in sPrices) {
-        final sPPU = _pricePerUnit(
-            price: sp.effectivePrice,
-            quantity: sBase.quantity,
-            fallbackQuantity: sBase.quantity);
+  // ========== RECOMMENDATION 3: other item of the lowest cost ===============
+  // Fallback ONLY when above suggestions are empty or were filtered by distance.
+  // We interpret “other item” as: from the same name group OR family, lowest absolute price
+  if (suggestions.isEmpty) {
+    final List<Alternative> anyCheaper = [];
 
-        // If it's cheaper by PPU and meets distance requirements
-        if (currentPPU != null && sPPU != null && sPPU < (currentPPU * 0.95)) {
-          final alt = _altFrom(sp, sBase);
-          if (_maybeAllowedByDistance(alt)) {
-            crossStoreAlts.add(alt);
+    // 3a) within same "nameKey" space
+    for (final otherId in sameNameIds) {
+      if (_isBlacklistedId(otherId)) continue;
+      final otherCat = _itemsById[otherId];
+      final entries = _pricesByItemId[otherId];
+      if (otherCat == null || entries == null || entries.isEmpty) continue;
+      if (_candidateIsAllergen(otherCat)) continue;
+
+      for (final p in entries) {
+        final alt = _altFrom(p, otherCat);
+        // Absolute price must beat current price, and pass distance
+        if (alt.price < currentPrice &&
+            !_isBlacklistedId(alt.itemId) &&
+            !_candidateTitleIsAllergen(alt.productName) &&
+            _maybeAllowedByDistance(alt)) {
+          anyCheaper.add(alt);
+        }
+      }
+    }
+
+    // 3b) expand to "family" if nameKey produced nothing
+    if (anyCheaper.isEmpty && id.isNotEmpty) {
+      final fam = _familyByItemId[id];
+      final familyIds = (fam != null) ? (_itemIdsByFamily[fam.family] ?? const <String>[]) : const <String>[];
+      for (final otherId in familyIds) {
+        if (_isBlacklistedId(otherId)) continue;
+        final otherCat = _itemsById[otherId];
+        final entries = _pricesByItemId[otherId];
+        if (otherCat == null || entries == null || entries.isEmpty) continue;
+        if (_candidateIsAllergen(otherCat)) continue;
+
+        for (final p in entries) {
+          final alt = _altFrom(p, otherCat);
+          if (alt.price < currentPrice &&
+              !_isBlacklistedId(alt.itemId) &&
+              !_candidateTitleIsAllergen(alt.productName) &&
+              _maybeAllowedByDistance(alt)) {
+            anyCheaper.add(alt);
           }
         }
       }
     }
 
-    if (crossStoreAlts.isNotEmpty) {
-      crossStoreAlts.sort((a, b) => (a.ppu ?? 0).compareTo(b.ppu ?? 0));
-      suggestions.add(crossStoreAlts.first);
+    if (anyCheaper.isNotEmpty) {
+      anyCheaper.sort((a, b) => a.price.compareTo(b.price));
+      suggestions.add(anyCheaper.first); // absolute cheapest acceptable item
     }
   }
 
@@ -1029,53 +976,22 @@ List<Alternative> _suggestFromPriceData(Purchase purchase) {
                     physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: view.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
-                    
                     itemBuilder: (context, index) {
                       final item = view[index];
-
-                      // ✅ Optional: hide suggestions if the purchased item itself is blacklisted
-                      final isPurchasedBlacklisted = _isBlacklistedExpanded(
-                        itemId: item.itemId,
-                        title: item.productName,
-                        brand: item.brand,
-                        feature: item.rawFeature,
-                        quantity: item.quantity,
-                      );
-
-                      if (isPurchasedBlacklisted) {
-                        return _PurchaseTile(
-                          item: item,
-                          suggestions: const [],
-                        );
-                      }
-
-                      // Raw suggestions
-                      final rawSuggestions = _suggestFromPriceData(item);
-
-                      // ✅ Filter out blacklisted alternatives
-                      final filteredSuggestions = rawSuggestions.where((alt) {
-                        return !_isBlacklistedExpanded(
-                          itemId: alt.itemId,
-                          title: alt.productName,
-                          brand: alt.brand,
-                          feature: alt.feature,
-                          quantity: alt.quantity,
-                        );
-                      }).toList();
-
+                      final suggestions = _suggestFromPriceData(item); // Note: plural
                       return _PurchaseTile(
                         item: item,
-                        suggestions: filteredSuggestions,
+                        suggestions: suggestions, 
                       );
-                    }, // End of itemBuilder
-                  ); // End of ListView.separated
-                }, // End of FutureBuilder builder
-              ), // End of FutureBuilder
-            ), // End of RefreshIndicator
-          ), // End of Expanded
-        ], // End of Column children
-      ), // End of Column
-    ); // End of Scaffold
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
