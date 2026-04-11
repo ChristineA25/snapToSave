@@ -113,6 +113,11 @@ class _BuyingHistoryPageState extends State<BuyingHistoryPage> {
   @override
   void initState() {
     super.initState();
+
+    // ✅ initialize immediately
+    _future = fetchPurchases(widget.userId);
+
+    // ✅ then run your async bootstrap
     _initData();
   }
   
@@ -180,21 +185,43 @@ class _BuyingHistoryPageState extends State<BuyingHistoryPage> {
 
   Future<double> _fetchOffsetForRegion(String isoCode) async {
     if (isoCode.isEmpty) return 0.0;
+    const tag = 'OFFSET_FETCH';
     try {
-      const url = 'https://nodejs-production-53a4.up.railway.app/phone/regions/with-sites?timeoutMs=20000&concurrency=4&overallMs=90000';
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      // 1. Increased timeout and optimized query parameters for the endpoint
+      // We increase the server-side timeout to 30s and the local timeout to 45s
+      const url = 'https://nodejs-production-53a4.up.railway.app/phone/regions/with-sites?timeoutMs=30000&concurrency=24&overallMs=90000';
+      
+      debugPrint('[$tag] Fetching offset for region: $isoCode');
+      
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 45));
+      
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
         final List rows = data['rows'] ?? [];
+        
+        // 2. Find the region by ID (case-insensitive)
         final region = rows.firstWhere(
-          (r) => _asString(r['regionID']).toLowerCase() == isoCode,
+          (r) => _asString(r['regionID']).toLowerCase() == isoCode.toLowerCase(),
           orElse: () => null,
         );
-        if (region != null) return _asDouble(region['offsetHrsVsUtc']);
+
+        if (region != null) {
+          // 3. Extract offset using the existing _asDouble helper
+          final offset = _asDouble(region['offsetHrsVsUtc']);
+          debugPrint('[$tag] Found offset for $isoCode: $offset');
+          return offset;
+        } else {
+          debugPrint('[$tag] Region $isoCode not found in list');
+        }
+      } else {
+        debugPrint('[$tag] Server returned status: ${res.statusCode}');
       }
     } catch (e) {
-      debugPrint("Error fetching region offset: $e");
+      // This catches the TimeoutException and logs it properly
+      debugPrint("[$tag] Error fetching region offset: $e");
     }
+    
+    // Fallback to 0.0 (UTC) if the fetch fails or times out
     return 0.0;
   }
 
@@ -505,18 +532,32 @@ List<Alternative> _suggestFromPriceData(Purchase purchase) {
   final purchasedIsBlacklisted = _isBlacklistedId(id);
 
   // --- NEW: distance screen --------------------------------------------------
+  // --- NEW: distance screen (Updated for Walking) ----------------------------
   bool _maybeAllowedByDistance(Alternative alt) {
-    // First consult cache (sync). If null, kick async compute and allow for now.
+    // 1. Identify the specific threshold for walking (e.g., 15 or 30 mins)
+    const int walkingThreshold = 30; 
+
+    // 2. Check the cache for a walking-specific result
     final cached = _distance.cachedAllowFor(
       shopAddress: alt.shopAddress,
       channel: alt.channel,
-      thresholdMin: 30,
+      thresholdMin: walkingThreshold,
     );
+
     if (cached == null) {
+      // 3. If not cached, trigger the async calculation
+      // Note: Ensure your DistanceFilterService.allowFor implementation 
+      // inside distance_filter_service.dart is set to 'walking' mode.
       _distance
-          .allowFor(shopAddress: alt.shopAddress, channel: alt.channel, thresholdMin: 30)
-          .then((_) { if (mounted) setState(() {}); });
-      return true; // optimistic until computed; UI will refresh when done
+          .allowFor(
+            shopAddress: alt.shopAddress, 
+            channel: alt.channel, 
+            thresholdMin: walkingThreshold,
+          )
+          .then((_) { 
+            if (mounted) setState(() {}); 
+          });
+      return true; // Optimistic until computed
     }
     return cached;
   }
@@ -1030,13 +1071,11 @@ class _TileWithImageState extends State<_TileWithImage> {
   @override
   void initState() {
     super.initState();
-    // Wait for the UI to settle so the Parent State is fully initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _resolveImage();
     });
   }
   
-  // Also add this to handle updates if the item changes (e.g. during search)
   @override
   void didUpdateWidget(_TileWithImage oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1047,7 +1086,6 @@ class _TileWithImageState extends State<_TileWithImage> {
     }
   }
 
-  
   Future<void> _resolveImage() async {
     if (_loaded) return;
     _loaded = true;
@@ -1058,12 +1096,9 @@ class _TileWithImageState extends State<_TileWithImage> {
 
     if (media != null) {
       final id = (widget.item.itemId ?? '').trim();
-
       if (id.isNotEmpty) {
-        // STRICT: Resolve strictly by itemID; do not fall back to name/brand.
         url = await media.picFor(itemId: id, idOnlyWhenIdPresent: true);
       } else {
-        // Only when there is truly no itemID do we allow a text-based lookup.
         final cleanName = (widget.item.rawItemName ?? '').trim();
         final brand = widget.item.brand.trim();
         if (cleanName.isNotEmpty) {
@@ -1071,7 +1106,7 @@ class _TileWithImageState extends State<_TileWithImage> {
             itemId: null,
             name: cleanName,
             brand: brand,
-            idOnlyWhenIdPresent: true, // harmless here; no id anyway
+            idOnlyWhenIdPresent: true,
           );
         }
       }
@@ -1082,11 +1117,26 @@ class _TileWithImageState extends State<_TileWithImage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final hasSuggestion = widget.suggestions.isNotEmpty;
+
+    // --- LOGIC FOR FEATURE FALLBACK ---
+    // Check if the bought item has a valid feature.
+    final rawF = (widget.item.rawFeature ?? '').trim();
+    final hasValidFeature = rawF.isNotEmpty && rawF.toLowerCase() != 'null';
+    
+    // If not, try to grab the feature from the first suggestion (the 'picture item').
+    String? displayFeature;
+    if (hasValidFeature) {
+      displayFeature = widget.item.rawFeature;
+    } else if (hasSuggestion) {
+      final suggestedFeature = (widget.suggestions.first.feature ?? '').trim();
+      if (suggestedFeature.isNotEmpty && suggestedFeature.toLowerCase() != 'null') {
+        displayFeature = suggestedFeature;
+      }
+    }
 
     return ListTile(
       leading: (_picUrl == null)
@@ -1141,10 +1191,10 @@ class _TileWithImageState extends State<_TileWithImage> {
                   icon: Icons.schedule,
                   color: colorScheme.outline,
                 ),
-                if ((widget.item.rawFeature ?? '').isNotEmpty &&
-                    (widget.item.rawFeature ?? '').toLowerCase() != 'null')
+                // UPDATED PILL: Uses the displayFeature resolved above
+                if (displayFeature != null)
                   _Pill(
-                    text: widget.item.rawFeature!,
+                    text: displayFeature,
                     icon: Icons.style,
                     color: Colors.deepPurple,
                   ),

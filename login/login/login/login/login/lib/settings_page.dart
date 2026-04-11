@@ -377,6 +377,9 @@ class _SettingsPageState extends State<SettingsPage> {
     // salary/target/postcodes/addresses already reflected on successful load/save
   }
 
+  // 1. Add this variable to your persisted values section
+  String? _lastSavedRegionId;
+
   bool _hasUnsavedChanges() {
   // 1. Normalize current inputs from controllers
   final currentSalary = double.tryParse(_salaryCtrl.text.trim()) ?? 0.0;
@@ -708,6 +711,7 @@ class _SettingsPageState extends State<SettingsPage> {
       });
       _reconcileSelectedAllergensWithCatalog();
       _snapshotCurrentAsSaved();
+      _lastSavedRegionId = _selectedRegionId;
     } catch (_) {
       setState(() => _userAllergenError = 'Failed to load user allergens');
     } finally {
@@ -1222,8 +1226,19 @@ class _SettingsPageState extends State<SettingsPage> {
 
         if (choice == 'save') {
           await _handleSave();
-          return !_hasUnsavedChanges();  // pop only once
-        } 
+          
+          // If the widget is no longer in the tree, stop execution.
+          // Since _handleLogout is Future<void>, a plain return is correct here.
+          if (!mounted) return false; 
+
+          if (!_hasUnsavedChanges()) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginPage()),
+              (route) => false,
+            );
+          }
+        }
         if (choice == 'discard') {
           return true;                   // let it pop immediately
         }
@@ -1247,10 +1262,20 @@ class _SettingsPageState extends State<SettingsPage> {
               final choice = await _confirmSaveBeforeLeave(leavingAction: "going back");
 
               if (choice == 'save') {
-                await _handleSave();
-                if (!mounted) return;
-                Navigator.of(context).pop();            // ← only pop once
-              } else if (choice == 'discard') {
+      await _handleSave();
+      
+      // If the widget is no longer in the tree, stop execution.
+      // Since _handleLogout is Future<void>, a plain return is correct here.
+      if (!mounted) return;
+
+      if (!_hasUnsavedChanges()) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    } else if (choice == 'discard') {
                 Navigator.of(context).pop();            // ← direct pop; no double press
               }
             },
@@ -1955,113 +1980,123 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /* ─────────────────────────────── Save flow ──────────────────────────────── */  
   Future<void> _handleSave() async {
-    // ─────────────────────────────────────────
-    // 1. Read values safely
-    // ─────────────────────────────────────────
-    final salaryText = _salaryCtrl.text.trim();
-    final savingText = _targetSavingCtrl.text.trim();
-
-    final double? parsedSalary =
-        salaryText.isEmpty ? _salary : double.tryParse(salaryText);
-    final double? parsedSaving =
-        savingText.isEmpty ? _targetSaving : double.tryParse(savingText);
-
-    // ─────────────────────────────────────────
-    // 2. Validate finance ONLY if user provided input
-    // ─────────────────────────────────────────
-    if (salaryText.isNotEmpty) {
-      final err =
-          _validateMoneyLoose(salaryText, fieldName: 'Salary');
-      if (err != null) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(err)));
-        return;
-      }
-    }
-
-    if (savingText.isNotEmpty) {
-      final err =
-          _validateMoneyLoose(savingText, fieldName: 'Saving');
-      if (err != null) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(err)));
-        return;
-      }
-    }
-
-    // ─────────────────────────────────────────
-    // 3. Cross‑field rule (only if both exist)
-    // ─────────────────────────────────────────
-    if (parsedSalary != null &&
-        parsedSaving != null &&
-        parsedSaving >= parsedSalary) {
+    // 1. Validation: Check if salary fields are empty before attempting to save
+    if (_salaryCtrl.text.trim().isEmpty || _targetSavingCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Target saving must be less than salary'),
+          content: Text('Salary/Saving is required.'),
+          backgroundColor: Colors.redAccent,
         ),
+      );
+      return; // Stop execution if fields are empty
+    }
+
+    setState(() => _savingSettings = true);
+    try {
+      final sValue = double.tryParse(_salaryCtrl.text.trim());
+      final tValue = double.tryParse(_targetSavingCtrl.text.trim());
+      
+      // Existing logic to handle the API payload
+      final body = {
+        'userID': widget.userId,
+        'monthlySalary': sValue,
+        'targetMonthlySaving': tValue,
+        'homeAdd': _homeAddressCtrl.text.trim(),
+        'homeAddCode': _postcodeCtrl.text.trim().toUpperCase(),
+        'workAdd': _workAddressCtrl.text.trim(),
+        'workAddCode': _workPostcodeCtrl.text.trim().toUpperCase(),
+      };
+
+      final primary = Uri.parse('$_kUserApiBase/api/user/settings');
+      final secondary = Uri.parse('$_kDataApiBase/api/user/settings');
+
+      final resp = await _putWithFallback(
+        primary,
+        secondary: secondary,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      if (resp.statusCode == 200) {
+        // Update local state variables to match the snapshot
+        _salary = sValue;
+        _targetSaving = tValue;
+        _homeAddress = body['homeAdd'] as String?;
+        _workAddress = body['workAdd'] as String?;
+        _postcode = body['homeAddCode'] as String?;
+        _workPostcode = body['workAddCode'] as String?;
+        
+        // Save allergens, blacklist, and display time
+        await _saveUserAllergens();
+        await _saveUserBlacklist();
+        await _saveDisplayTime();
+        
+        _snapshotCurrentAsSaved();
+        _lastSavedRegionId = _selectedRegionId;
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Settings saved successfully')),
+          );
+        }
+      } else {
+        throw Exception('Failed to save settings (HTTP ${resp.statusCode})');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingSettings = false);
+    }
+  }
+
+  // ... inside _SettingsPageState ...
+  Future<void> _handleLogout() async {
+    if (!_hasUnsavedChanges()) {
+      // No changes: logout immediately
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
       );
       return;
     }
 
-    // ─────────────────────────────────────────
-    // 4. Address values (always allowed)
-    // ─────────────────────────────────────────
-    final homeAddr = _homeAddressCtrl.text.trim();
-    final workAddr = _workAddressCtrl.text.trim();
-    final homePostcode = _postcodeCtrl.text.trim().toUpperCase();
-    final workPostcode = _workPostcodeCtrl.text.trim().toUpperCase();
+    // Unsaved changes exist: show confirmation dialog
+    final choice = await _confirmSaveBeforeLeave(leavingAction: 'logging out');
 
-    setState(() => _savingSettings = true);
+    if (choice == 'save') {
+      // ADDED VALIDATION: Check if form is valid before allowing save
+      if (_formKey.currentState?.validate() ?? false) {
+        await _handleSave();
+        if (!mounted) return;
 
-    try {
-      final resp = await _putWithFallback(
-        Uri.parse('$_kUserApiBase/api/user/settings'),
-        secondary: Uri.parse('$_kDataApiBase/api/user/settings'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'userID': widget.userId,
-
-          // ✅ ALWAYS send finance if we have a value
-          if (parsedSalary != null)
-            'monthlySalary': parsedSalary.toStringAsFixed(2),
-
-          if (parsedSaving != null)
-            'targetMonthlySaving': parsedSaving.toStringAsFixed(2),
-
-          // ✅ Always send addresses
-          'homeAdd': homeAddr,
-          'workAdd': workAddr,
-          'homeAddCode': homePostcode,
-          'workAddCode': workPostcode,
-        }),
-      );
-
-      if (resp.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings saved')),
+        // Proceed to logout only if save was successful and fields are valid
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
         );
-
-        // ✅ Side‑effect saves
-        await _saveUserAllergens();
-        await _saveUserBlacklist();
-        await _saveDisplayTime();
-
-        // ✅ Persist local state
-        _salary = parsedSalary;
-        _targetSaving = parsedSaving;
-
-        _snapshotCurrentAsSaved();
       } else {
+        // If validation fails (e.g., null fields), show error and stay on page
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed (${resp.statusCode})')),
+          const SnackBar(
+            content: Text('Please enter valid salary and saving amounts before saving.'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Network error saving settings')),
-      );
-    } finally {
-      if (mounted) setState(() => _savingSettings = false);
+    } else if (choice == 'discard') {
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
+      }
     }
   }
 
@@ -2071,15 +2106,15 @@ class _SettingsPageState extends State<SettingsPage> {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Log out?'),
-          content: const Text('You will return to the login screen.'),
+          title: const Text('Log out'),
+          content: const Text('Are you sure you want to log out?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
+              onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Log out'),
             ),
           ],
@@ -2100,13 +2135,12 @@ class _SettingsPageState extends State<SettingsPage> {
     if (choice == 'save') {
       await _handleSave();
       if (!mounted) return;
-      if (!_hasUnsavedChanges()) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-          (route) => false,
-        );
-      }
+      // After saving successfully, proceed to log out regardless of the snapshot check
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
     } else if (choice == 'discard') {
       if (context.mounted) {
         Navigator.pushAndRemoveUntil(
