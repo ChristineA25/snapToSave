@@ -1226,23 +1226,17 @@ class _SettingsPageState extends State<SettingsPage> {
 
         if (choice == 'save') {
           await _handleSave();
-          
           // If the widget is no longer in the tree, stop execution.
-          // Since _handleLogout is Future<void>, a plain return is correct here.
-          if (!mounted) return false; 
-
+          if (!mounted) return false;
           if (!_hasUnsavedChanges()) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginPage()),
-              (route) => false,
-            );
+            Navigator.of(context).pop(); // Just pop back to previous (home)
+            return false;
           }
         }
         if (choice == 'discard') {
-          return true;                   // let it pop immediately
+          return true; // let it pop immediately
         }
-        return false;                    // cancel
+        return false; // cancel
       },
 
       child: Scaffold(
@@ -1262,21 +1256,13 @@ class _SettingsPageState extends State<SettingsPage> {
               final choice = await _confirmSaveBeforeLeave(leavingAction: "going back");
 
               if (choice == 'save') {
-      await _handleSave();
-      
-      // If the widget is no longer in the tree, stop execution.
-      // Since _handleLogout is Future<void>, a plain return is correct here.
-      if (!mounted) return;
-
-      if (!_hasUnsavedChanges()) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-          (route) => false,
-        );
-      }
-    } else if (choice == 'discard') {
-                Navigator.of(context).pop();            // ← direct pop; no double press
+                await _handleSave();
+                if (!mounted) return;
+                if (!_hasUnsavedChanges()) {
+                  Navigator.of(context).pop(); // Just pop back to previous (home)
+                }
+              } else if (choice == 'discard') {
+                Navigator.of(context).pop(); // direct pop; no double press
               }
             },
           ),
