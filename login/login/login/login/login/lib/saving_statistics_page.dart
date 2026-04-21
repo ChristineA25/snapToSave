@@ -379,7 +379,19 @@ class _SavingStatisticsPageState extends State<SavingStatisticsPage> {
           lineTouchData: LineTouchData(
             touchCallback: (event, touchResponse) {
               if (!event.isInterestedForInteractions || touchResponse == null || touchResponse.lineBarSpots == null) return;
-              setState(() => _touchedIndex = touchResponse.lineBarSpots!.first.spotIndex);
+              // Only highlight the dot from the spending (blue) line
+              final spendingBarIndex = (_salarySpots.isNotEmpty) ? 1 : 0; // spending line is 1 if salary line exists, else 0
+              TouchLineBarSpot? spendingSpot;
+              try {
+                spendingSpot = touchResponse.lineBarSpots!.firstWhere(
+                  (barSpot) => barSpot.barIndex == spendingBarIndex,
+                );
+              } catch (_) {
+                spendingSpot = null;
+              }
+              if (spendingSpot != null) {
+                setState(() => _touchedIndex = spendingSpot?.spotIndex);
+              }
             },
             handleBuiltInTouches: true,
             touchTooltipData: LineTouchTooltipData(
