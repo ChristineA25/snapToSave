@@ -12,36 +12,103 @@ Map<String, Color> _categoryColors = {};
 // Update this at the top of your file or inside the class
 final List<Color> _distinctColors = [
   Colors.blue,
-    Colors.red,
-    Colors.green,
-    Colors.orange,
-    Colors.purple,
-    Colors.cyan,
-    Colors.amber,
-    Colors.teal,
-    Colors.indigo,
-    Colors.pink,
-    Colors.lime,
-    Colors.brown,
-    Colors.deepOrange,
-    Colors.lightBlue,
-    Colors.blueGrey,
-    
+  Colors.red,
+  Colors.green,
+  Colors.orange,
+  Colors.purple,
+  Colors.cyan,
+  Colors.amber,
+  Colors.teal,
+  Colors.indigo,
+  Colors.pink,
+  Colors.lime,
+  Colors.brown,
+  Colors.deepOrange,
+  Colors.lightBlue,
+  Colors.blueGrey,
 ];
 int _colorIndex = 0;
-
 
 // NEW: Keep a character marker only for categories whose colour had to be reused
 final Map<String, String> _categoryMarkers = {};
 
 // NEW: A small pool of easy-to-read marker characters (you can add more)
 final List<String> _markerPool = [
-  '◆','●','■','▲','★','◆','●','■','▲','✚','✱','✦',
-  'A','B','C','D','E','F','G','H','I','J','K','L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S','T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
+  '◆',
+  '●',
+  '■',
+  '▲',
+  '★',
+  '◆',
+  '●',
+  '■',
+  '▲',
+  '✚',
+  '✱',
+  '✦',
+  'A',
+  'B',
+  'C',
+  'D',
+  'E',
+  'F',
+  'G',
+  'H',
+  'I',
+  'J',
+  'K',
+  'L',
+  'M',
+  'N',
+  'O',
+  'P',
+  'Q',
+  'R',
+  'S',
+  'T',
+  'U',
+  'V',
+  'W',
+  'X',
+  'Y',
+  'Z',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '0',
+  'a',
+  'b',
+  'c',
+  'd',
+  'e',
+  'f',
+  'g',
+  'h',
+  'i',
+  'j',
+  'k',
+  'l',
+  'm',
+  'n',
+  'o',
+  'p',
+  'q',
+  'r',
+  's',
+  't',
+  'u',
+  'v',
+  'w',
+  'x',
+  'y',
+  'z'
 ];
-
 
 final Random _rng = Random();
 
@@ -60,13 +127,13 @@ class StatisticsPage extends StatefulWidget {
 
 class _StatisticsPageState extends State<StatisticsPage> {
   TimeUnit selectedUnit = TimeUnit.day;
-  
+
   List<Map<String, dynamic>> _apiData = [];
   bool _isLoading = true;
   bool _isZoomed = false;
 
   // CHANGE: Added state to track which category is currently filtered
-  String? _selectedCategory; 
+  String? _selectedCategory;
 
   @override
   void initState() {
@@ -76,18 +143,17 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
   Future<void> _fetchAnalytics() async {
     setState(() => _isLoading = true);
-    
+
     final String endpoint = _apiEndpoint(selectedUnit);
     final url = Uri.parse(
-      'https://nodejs-production-53a4.up.railway.app/api/item-input/analytics/$endpoint?userID=${widget.userId}'
-    );
+        'https://nodejs-production-53a4.up.railway.app/api/item-input/analytics/$endpoint?userID=${widget.userId}');
 
     try {
       final response = await http.get(url).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         final List<dynamic> rows = data['rows'] ?? [];
-        
+
         setState(() {
           _apiData = _processApiRows(rows);
           _isLoading = false;
@@ -105,16 +171,23 @@ class _StatisticsPageState extends State<StatisticsPage> {
     final Set<String> uniqueCategories = {};
 
     for (final row in rows) {
-      final String rawKey = (row['spending_date'] ?? row['spending_month'] ?? row['spending_year']).toString();
+      final String rawKey = (row['spending_date'] ??
+              row['spending_month'] ??
+              row['spending_year'])
+          .toString();
       final String labelKey = _normalizeDate(rawKey);
 
       groups.putIfAbsent(labelKey, () => {"label": labelKey, "total": 0.0});
 
-      final String category = (row['category'] ?? 'other').toString().toLowerCase();
-      final double amount = double.tryParse(row['total_spent'].toString()) ?? 0.0;
+      final String category =
+          (row['category'] ?? 'other').toString().toLowerCase();
+      final double amount =
+          double.tryParse(row['total_spent'].toString()) ?? 0.0;
 
-      groups[labelKey]![category] = (groups[labelKey]![category] ?? 0.0) + amount;
-      groups[labelKey]!["total"] = (groups[labelKey]!["total"] as double) + amount;
+      groups[labelKey]![category] =
+          (groups[labelKey]![category] ?? 0.0) + amount;
+      groups[labelKey]!["total"] =
+          (groups[labelKey]!["total"] as double) + amount;
 
       uniqueCategories.add(category);
     }
@@ -138,7 +211,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
             _rng.nextInt(256),
             _rng.nextInt(256),
           );
-          
+
           // Optional: You can still add a marker if you want to flag "generated" colors
           _categoryMarkers[cat] = _randomMarker();
         }
@@ -152,22 +225,36 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return result;
   }
 
-
-
   String _normalizeDate(String raw) {
     if (raw.contains('GMT')) {
       List<String> p = raw.split(' ');
-      const m = {"Jan":"01","Feb":"02","Mar":"03","Apr":"04","May":"05","Jun":"06","Jul":"07","Aug":"08","Sep":"09","Oct":"10","Nov":"11","Dec":"12"};
+      const m = {
+        "Jan": "01",
+        "Feb": "02",
+        "Mar": "03",
+        "Apr": "04",
+        "May": "05",
+        "Jun": "06",
+        "Jul": "07",
+        "Aug": "08",
+        "Sep": "09",
+        "Oct": "10",
+        "Nov": "11",
+        "Dec": "12"
+      };
       return "${p[3]}-${m[p[1]]}-${p[2].padLeft(2, '0')}";
     }
-    return raw; 
+    return raw;
   }
 
   String _apiEndpoint(TimeUnit unit) {
     switch (unit) {
-      case TimeUnit.day: return 'daily';
-      case TimeUnit.month: return 'monthly';
-      case TimeUnit.year: return 'yearly';
+      case TimeUnit.day:
+        return 'daily';
+      case TimeUnit.month:
+        return 'monthly';
+      case TimeUnit.year:
+        return 'yearly';
     }
   }
 
@@ -177,16 +264,31 @@ class _StatisticsPageState extends State<StatisticsPage> {
     String key = _apiData[index]['label'];
     if (selectedUnit == TimeUnit.year) return key;
 
-    const monthMap = {"01":"Jan","02":"Feb","03":"Mar","04":"Apr","05":"May","06":"Jun","07":"Jul","08":"Aug","09":"Sep","10":"Oct","11":"Nov","12":"Dec"};
-    
+    const monthMap = {
+      "01": "Jan",
+      "02": "Feb",
+      "03": "Mar",
+      "04": "Apr",
+      "05": "May",
+      "06": "Jun",
+      "07": "Jul",
+      "08": "Aug",
+      "09": "Sep",
+      "10": "Oct",
+      "11": "Nov",
+      "12": "Dec"
+    };
+
     try {
       if (selectedUnit == TimeUnit.day) {
         return "${key.substring(8, 10)} ${monthMap[key.substring(5, 7)]}";
       }
       return "${monthMap[key.substring(5, 7)]} ${key.substring(2, 4)}";
-    } catch (e) { return key; }
+    } catch (e) {
+      return key;
+    }
   }
-  
+
   // CHANGE: Updated _getStats to compute a true statistical median for both odd and even counts
   Map<String, double> _getStats() {
     if (_apiData.isEmpty) return {"mean": 0, "median": 0, "max": 100};
@@ -246,39 +348,33 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
         double val = (d[cat] ?? 0.0);
         if (val > 0) {
-          stacks.add(
-            BarChartRodStackItem(
-              currentStackHeight, 
-              currentStackHeight + val, 
-              _categoryColors[cat]!
-            )
-          );
+          stacks.add(BarChartRodStackItem(currentStackHeight,
+              currentStackHeight + val, _categoryColors[cat]!));
           currentStackHeight += val;
           totalToDisplay += val;
         }
       }
 
-      return BarChartGroupData(
-        x: index, 
-        barRods: [
-          BarChartRodData(
-            toY: totalToDisplay, 
-            width: _isZoomed ? 32 : 18, 
-            borderRadius: BorderRadius.circular(4), 
-            rodStackItems: stacks,
-            color: stacks.isEmpty ? Colors.grey.withOpacity(0.2) : null, 
-          )
-        ]
-      );
+      return BarChartGroupData(x: index, barRods: [
+        BarChartRodData(
+          toY: totalToDisplay,
+          width: _isZoomed ? 32 : 18,
+          borderRadius: BorderRadius.circular(4),
+          rodStackItems: stacks,
+          color: stacks.isEmpty ? Colors.grey.withOpacity(0.2) : null,
+        )
+      ]);
     });
   }
+
   @override
   Widget build(BuildContext context) {
     final stats = _getStats();
     final chartMaxY = stats["max"]! == 0 ? 10.0 : stats["max"]! * 1.3;
-    
+
     double barSpacing = _isZoomed ? 120.0 : 60.0;
-    double chartWidth = max(MediaQuery.of(context).size.width, _apiData.length * barSpacing);
+    double chartWidth =
+        max(MediaQuery.of(context).size.width, _apiData.length * barSpacing);
 
     return Scaffold(
       appBar: AppBar(
@@ -310,145 +406,169 @@ class _StatisticsPageState extends State<StatisticsPage> {
             ),
           ),
           Expanded(
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : _apiData.isEmpty 
-                ? const Center(child: Text("No records found"))
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: chartWidth,
-                      padding: const EdgeInsets.all(20),
-                      // CHANGE: Wrap BarChart with a Column so we can add a chart title above it
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // CHANGE: Chart title
-                          Text(
-                            "Spending Chart", // <- chart title
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                          const SizedBox(height: 8),
-                          // CHANGE: The BarChart moves into an Expanded so it uses remaining space
-                          Expanded(
-                            child: BarChart(
-                              BarChartData(
-                                maxY: chartMaxY,
-                                barGroups: _buildBarGroups(),
-                                barTouchData: BarTouchData(
-                                  touchTooltipData: BarTouchTooltipData(
-                                    getTooltipColor: (group) => Colors.blueGrey.withOpacity(0.9),
-                                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                      final dataPoint = _apiData[groupIndex];
-                                      final total = _selectedCategory != null
-                                          ? (dataPoint[_selectedCategory] ?? 0.0)
-                                          : dataPoint["total"];
-                                      
-                                      List<String> lines = [
-                                          _selectedCategory != null
-                                              ? "${_selectedCategory![0].toUpperCase()}${_selectedCategory!.substring(1)}: £${total.toStringAsFixed(2)}"
-                                              : "Total: £${total.toStringAsFixed(2)}"
-                                        ];
-
-                                      
-                                      if (_selectedCategory == null) {
-                                          // Sort categories by contribution (descending) for clearer tooltips
-                                          final entries = _categoryColors.keys
-                                              .map((cat) => MapEntry(cat, (dataPoint[cat] ?? 0.0) as double))
-                                              .where((e) => e.value > 0)
-                                              .toList()
-                                            ..sort((a, b) => b.value.compareTo(a.value));
-
-                                          for (final e in entries) {
-                                            final cat = e.key;
-                                            final val = e.value;
-                                            final percentage = (total == 0) ? 0 : (val / total) * 100;
-
-                                            // If this category’s colour is reused, it will have a marker
-                                            final String? marker = _categoryMarkers[cat];
-
-                                            final String catLabel =
-                                                (marker != null ? "$marker " : "") +
-                                                "${cat[0].toUpperCase()}${cat.substring(1)}";
-
-                                            lines.add(
-                                              "$catLabel: £${val.toStringAsFixed(2)} (${percentage.toStringAsFixed(1)}%)",
-                                            );
-                                          }
-                                        }
-
-                                      return BarTooltipItem(
-                                        lines.join('\n'),
-                                        const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                extraLinesData: ExtraLinesData(horizontalLines: [
-                                  HorizontalLine(
-                                      y: stats["mean"]!, color: Colors.redAccent, dashArray: [5, 5]),
-                                  HorizontalLine(
-                                      y: stats["median"]!, color: Colors.orange, dashArray: [3, 3]),
-                                ]),
-                                // CHANGE: Add axis titles (x = "spent £", y = "dates")
-                                titlesData: FlTitlesData(
-                                  leftTitles: AxisTitles(
-                                    // y-axis (vertical) — add axis name "dates"
-                                    // Note: This is semantically unusual (normally y is the amount),
-                                    // but implemented exactly as you requested.
-                                    axisNameWidget: const Padding(
-                                      padding: EdgeInsets.only(bottom: 8.0),
-                                      child: Text(
-                                        "spent £", // <- Y axis title
-                                        style: TextStyle(fontWeight: FontWeight.w600),
-                                      ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _apiData.isEmpty
+                    ? const Center(child: Text("No records found"))
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: chartWidth,
+                          padding: const EdgeInsets.all(20),
+                          // CHANGE: Wrap BarChart with a Column so we can add a chart title above it
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // CHANGE: Chart title
+                              Text(
+                                "Spending Chart", // <- chart title
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
                                     ),
-                                    axisNameSize: 24,
-                                    sideTitles: SideTitles(showTitles: true, reservedSize: 40),
-                                  ),
-                                  bottomTitles: AxisTitles(
-                                    // x-axis (horizontal) — add axis name "spent £"
-                                    axisNameWidget: const Padding(
-                                      padding: EdgeInsets.only(top: 8.0),
-                                      child: Text(
-                                        "dates", // <- X axis title
-                                        style: TextStyle(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                    axisNameSize: 24,
-                                    sideTitles: SideTitles(
-                                      showTitles: true,
-                                      getTitlesWidget: (v, m) => SideTitleWidget(
-                                        meta: m,
-                                        child: Text(
-                                          _getBottomLabel(v),
-                                          style: TextStyle(fontSize: _isZoomed ? 11 : 10),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  // Keep top/right titles hidden
-                                  topTitles: const AxisTitles(),
-                                  rightTitles: const AxisTitles(),
-                                ),
-                                gridData: const FlGridData(show: false),
-                                borderData: FlBorderData(show: false),
                               ),
-                            ),
+                              const SizedBox(height: 8),
+                              // CHANGE: The BarChart moves into an Expanded so it uses remaining space
+                              Expanded(
+                                child: BarChart(
+                                  BarChartData(
+                                    maxY: chartMaxY,
+                                    barGroups: _buildBarGroups(),
+                                    barTouchData: BarTouchData(
+                                        touchTooltipData: BarTouchTooltipData(
+                                        getTooltipColor: (group) =>
+                                          Colors.blueGrey.withOpacity(0.9),
+                                        getTooltipItem:
+                                          (group, groupIndex, rod, rodIndex) {
+                                          final dataPoint =
+                                              _apiData[groupIndex];
+                                          final total = _selectedCategory !=
+                                                  null
+                                              ? (dataPoint[_selectedCategory] ??
+                                                  0.0)
+                                              : dataPoint["total"];
+                                          List<String> lines = [
+                                            _selectedCategory != null
+                                                ? "${_selectedCategory![0].toUpperCase()}${_selectedCategory!.substring(1)}: £${total.toStringAsFixed(2)}"
+                                                : "Total: £${total.toStringAsFixed(2)}"
+                                          ];
+                                          if (_selectedCategory == null) {
+                                            // Sort categories by contribution (descending) for clearer tooltips
+                                            final entries = _categoryColors.keys
+                                                .map((cat) => MapEntry(
+                                                    cat,
+                                                    (dataPoint[cat] ?? 0.0)
+                                                        as double))
+                                                .where((e) => e.value > 0)
+                                                .toList()
+                                              ..sort((a, b) =>
+                                                  b.value.compareTo(a.value));
+
+                                            for (final e in entries) {
+                                              final cat = e.key;
+                                              final val = e.value;
+                                              final percentage = (total == 0)
+                                                  ? 0
+                                                  : (val / total) * 100;
+
+                                              // If this category’s colour is reused, it will have a marker
+                                              final String? marker =
+                                                  _categoryMarkers[cat];
+
+                                              final String catLabel = (marker !=
+                                                          null
+                                                      ? "$marker "
+                                                      : "") +
+                                                  "${cat[0].toUpperCase()}${cat.substring(1)}";
+
+                                              lines.add(
+                                                "$catLabel: £${val.toStringAsFixed(2)} (${percentage.toStringAsFixed(1)}%)",
+                                              );
+                                            }
+                                          }
+
+                                          return BarTooltipItem(
+                                            lines.join('\n'),
+                                            const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    extraLinesData:
+                                        ExtraLinesData(horizontalLines: [
+                                      HorizontalLine(
+                                          y: stats["mean"]!,
+                                          color: Colors.redAccent,
+                                          dashArray: [5, 5]),
+                                      HorizontalLine(
+                                          y: stats["median"]!,
+                                          color: Colors.orange,
+                                          dashArray: [3, 3]),
+                                    ]),
+                                    // CHANGE: Add axis titles (x = "spent £", y = "dates")
+                                    titlesData: FlTitlesData(
+                                      leftTitles: AxisTitles(
+                                        // y-axis (vertical) — add axis name "dates"
+                                        // Note: This is semantically unusual (normally y is the amount),
+                                        // but implemented exactly as you requested.
+                                        axisNameWidget: const Padding(
+                                          padding: EdgeInsets.only(bottom: 8.0),
+                                          child: Text(
+                                            "spent £", // <- Y axis title
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                        axisNameSize: 24,
+                                        sideTitles: SideTitles(
+                                            showTitles: true, reservedSize: 40),
+                                      ),
+                                      bottomTitles: AxisTitles(
+                                        // x-axis (horizontal) — add axis name "spent £"
+                                        axisNameWidget: const Padding(
+                                          padding: EdgeInsets.only(top: 8.0),
+                                          child: Text(
+                                            "dates", // <- X axis title
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                        axisNameSize: 24,
+                                        sideTitles: SideTitles(
+                                          showTitles: true,
+                                          getTitlesWidget: (v, m) =>
+                                              SideTitleWidget(
+                                            meta: m,
+                                            child: Text(
+                                              _getBottomLabel(v),
+                                              style: TextStyle(
+                                                  fontSize:
+                                                      _isZoomed ? 11 : 10),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      // Keep top/right titles hidden
+                                      topTitles: const AxisTitles(),
+                                      rightTitles: const AxisTitles(),
+                                    ),
+                                    gridData: const FlGridData(show: false),
+                                    borderData: FlBorderData(show: false),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
           ),
           _buildLegend(stats),
         ],
@@ -462,12 +582,11 @@ class _StatisticsPageState extends State<StatisticsPage> {
       padding: const EdgeInsets.all(20.0),
       child: Column(
         children: [
-        const Text(
-          "Item category",
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-
+          const Text(
+            "Item category",
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 15,
             runSpacing: 10,
@@ -478,7 +597,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
               // NEW: prefix the label with the marker if present
               final marker = _categoryMarkers[entry.key];
               final displayLabel = (marker != null ? "$marker " : "") +
-                  (entry.key.isEmpty ? "Other" : entry.key[0].toUpperCase() + entry.key.substring(1));
+                  (entry.key.isEmpty
+                      ? "Other"
+                      : entry.key[0].toUpperCase() + entry.key.substring(1));
 
               return GestureDetector(
                 onTap: () {
@@ -492,8 +613,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   opacity: _selectedCategory == null || isSelected ? 1.0 : 0.3,
                   child: _LegendItem(
                     color: entry.value,
-                    label: entry.key.isEmpty 
-                        ? "Other" 
+                    label: entry.key.isEmpty
+                        ? "Other"
                         : entry.key[0].toUpperCase() + entry.key.substring(1),
                   ),
                 ),
@@ -506,15 +627,13 @@ class _StatisticsPageState extends State<StatisticsPage> {
             alignment: WrapAlignment.center,
             children: [
               _LegendItem(
-                color: Colors.redAccent, 
-                label: "Avg: \£${stats["mean"]!.toStringAsFixed(2)}", 
-                isLine: true
-              ),
+                  color: Colors.redAccent,
+                  label: "Avg: \£${stats["mean"]!.toStringAsFixed(2)}",
+                  isLine: true),
               _LegendItem(
-                color: Colors.orange, 
-                label: "Med: \£${stats["median"]!.toStringAsFixed(2)}", 
-                isLine: true
-              ),
+                  color: Colors.orange,
+                  label: "Med: \£${stats["median"]!.toStringAsFixed(2)}",
+                  isLine: true),
             ],
           ),
         ],
@@ -524,19 +643,34 @@ class _StatisticsPageState extends State<StatisticsPage> {
 }
 
 class _InteractableLegend extends StatelessWidget {
-  final Color color; final String label; final VoidCallback onTap; final bool isActive;
-  const _InteractableLegend({required this.color, required this.label, required this.onTap, required this.isActive});
+  final Color color;
+  final String label;
+  final VoidCallback onTap;
+  final bool isActive;
+  const _InteractableLegend(
+      {required this.color,
+      required this.label,
+      required this.onTap,
+      required this.isActive});
   @override
-  Widget build(BuildContext context) => GestureDetector(onTap: onTap, child: Opacity(opacity: isActive ? 1.0 : 0.3, child: _LegendItem(color: color, label: label)));
+  Widget build(BuildContext context) => GestureDetector(
+      onTap: onTap,
+      child: Opacity(
+          opacity: isActive ? 1.0 : 0.3,
+          child: _LegendItem(color: color, label: label)));
 }
 
 class _LegendItem extends StatelessWidget {
-  final Color color; final String label; final bool isLine;
-  const _LegendItem({required this.color, required this.label, this.isLine = false});
+  final Color color;
+  final String label;
+  final bool isLine;
+  const _LegendItem(
+      {required this.color, required this.label, this.isLine = false});
   @override
-  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
-    Container(width: 12, height: isLine ? 2 : 12, color: color),
-    const SizedBox(width: 4),
-    Text(label, style: const TextStyle(fontSize: 11)),
-  ]);
+  Widget build(BuildContext context) =>
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 12, height: isLine ? 2 : 12, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 11)),
+      ]);
 }
