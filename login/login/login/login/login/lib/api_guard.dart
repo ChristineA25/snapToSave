@@ -18,7 +18,10 @@ Future<T> requireOnline<T>({
   required OnlineTask<T> task,
   String offlineMessage = 'No internet. Please connect and try again.',
 }) async {
-  final hasInternet = await InternetConnectionChecker().hasConnection;
+  
+  final hasInternet =
+      await InternetConnectionChecker.instance.hasConnection;
+
   if (!hasInternet) {
     // surface a short, consistent message
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -35,4 +38,6 @@ Future<T> requireOnline<T>({
 }
 
 /// Convenience helper if you need a quick check elsewhere.
-Future<bool> isOnline() => InternetConnectionChecker().hasConnection;
+Future<bool> isOnline() =>
+    InternetConnectionChecker.instance.hasConnection;
+

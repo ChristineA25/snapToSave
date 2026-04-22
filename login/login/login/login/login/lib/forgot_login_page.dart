@@ -110,7 +110,7 @@ class _ForgotLoginPageState extends State<ForgotLoginPage> {
 
   Widget _connectionHint() {
   return StreamBuilder<InternetConnectionStatus>(
-    stream: InternetConnectionChecker().onStatusChange,
+    stream: InternetConnectionChecker.createInstance().onStatusChange,
     initialData: InternetConnectionStatus.connected,
     builder: (context, snap) {
       final offline = snap.data == InternetConnectionStatus.disconnected;
@@ -1121,27 +1121,18 @@ String? _validateIdentifier(String? value) {
 
     return TextFormField(
       controller: controller,
-      // Switch keyboard type to phone if needed, or multiline to allow the "Enter" key
       keyboardType: isPhone ? TextInputType.phone : TextInputType.multiline,
-      
-      // --- EXPANDABLE UI LOGIC ---
-      // null maxLines allows the field to grow vertically as the user types
-      maxLines: isPhone ? 1 : null, 
-      minLines: 1, 
-      // ---------------------------
-
+      maxLines: isPhone ? 1 : null,
+      minLines: 1,
       decoration: InputDecoration(
         labelText: isPhone ? "Phone Number" : (_idType == IdentifierType.email ? "Email" : "Username"),
-        // Ensures the label stays at the top when the box expands
-        alignLabelWithHint: true, 
-        
-        // Add the country code dropdown as a prefix icon if in phone mode
+        alignLabelWithHint: true,
         prefixIcon: isPhone
             ? Container(
                 width: 140,
                 padding: const EdgeInsets.only(left: 8),
                 child: DropdownSearch<PhoneRegion>(
-                  items: (filter, loadProps) => _regions,
+                  items: _regions,
                   selectedItem: _selectedRegion,
                   compareFn: (a, b) => a.iso2 == b.iso2,
                   itemAsString: (r) {
@@ -1149,8 +1140,8 @@ String? _validateIdentifier(String? value) {
                     final pretty = r.displayCode ?? r.code;
                     return '${flag.isNotEmpty ? '$flag ' : ''}${r.name} ($pretty)';
                   },
-                  decoratorProps: const DropDownDecoratorProps(
-                    decoration: InputDecoration(
+                  dropdownDecoratorProps: const DropDownDecoratorProps(
+                    dropdownSearchDecoration: InputDecoration(
                       border: InputBorder.none,
                     ),
                   ),
@@ -1175,7 +1166,6 @@ String? _validateIdentifier(String? value) {
                     ? Icons.email
                     : Icons.person,
               ),
-
         border: const OutlineInputBorder(),
         hintText: isPhone ? "e.g. 7123456789" : "Enter your identifier",
       ),

@@ -25,9 +25,16 @@ class DiscountSummaryDialog extends StatefulWidget {
   State<DiscountSummaryDialog> createState() => _DiscountSummaryDialogState();
 }
 
+
 class _DiscountSummaryDialogState extends State<DiscountSummaryDialog> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
 
   @override
   void dispose() {

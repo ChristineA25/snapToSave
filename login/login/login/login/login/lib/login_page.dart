@@ -160,7 +160,7 @@ class _LoginPageState extends State<LoginPage> {
   // ---- UI helper widgets ----
   Widget _connectionHint() {
     return StreamBuilder<InternetConnectionStatus>(
-      stream: InternetConnectionChecker().onStatusChange,
+      stream: InternetConnectionChecker.instance.onStatusChange,
       initialData: InternetConnectionStatus.connected,
       builder: (context, snap) {
         final offline = snap.data == InternetConnectionStatus.disconnected;
@@ -482,32 +482,30 @@ class _LoginPageState extends State<LoginPage> {
                               children: [
                                 
                                 DropdownSearch<PhoneRegion>(
-                                  // Fixed: 'items' is the correct parameter for a static list
-                                  items: (filter, loadProps) => _regions, 
+                                  items: _regions,
                                   selectedItem: _selectedRegion,
-                                  
-                                  // ADD THIS LINE: Tells the widget how to check if two regions are the same
-                                  compareFn: (item1, item2) => item1.iso2 == item2.iso2,
+
+                                  compareFn: (a, b) => a.iso2 == b.iso2,
 
                                   itemAsString: (r) {
                                     final flag = iso2ToFlagEmoji(r.iso2);
                                     final pretty = r.displayCode ?? r.code;
                                     return '${flag.isNotEmpty ? '$flag ' : ''}${r.name} ($pretty)';
                                   },
-                                  // Fixed: 'dropdownDecoratorProps' changed to 'decoratorProps'
-                                  decoratorProps: DropDownDecoratorProps(
-                                    // Fixed: 'dropdownSearchDecoration' changed to 'decoration'
-                                    decoration: InputDecoration(
+
+                                  dropdownDecoratorProps: DropDownDecoratorProps(
+                                    dropdownSearchDecoration: InputDecoration(
                                       labelText: 'Country',
                                       prefixIcon: const Icon(Icons.flag_outlined),
                                       helperText: _regionsError,
                                       filled: true,
-                                      fillColor: theme.colorScheme.surface,
+                                      fillColor: Theme.of(context).colorScheme.surface,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                   ),
+
                                   popupProps: const PopupProps.menu(
                                     showSearchBox: true,
                                     searchFieldProps: TextFieldProps(
@@ -516,13 +514,15 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     ),
                                   ),
+
                                   validator: (r) {
                                     if (_idType != IdentifierType.phone) return null;
                                     return r == null ? 'Choose a country' : null;
                                   },
+
                                   onChanged: (r) => setState(() => _selectedRegion = r),
                                 ),
-                                                                
+                              
                                 const SizedBox(height: 8),
                                 _identifierField(theme),
                               ],

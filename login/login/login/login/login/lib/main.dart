@@ -9,9 +9,21 @@ import 'photo_taking.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ConnectivityService.instance.start(); 
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.dumpErrorToConsole(details);
+  };
+
+  try {
+    await ConnectivityService.instance.start();
+  } catch (e, stack) {
+    debugPrint('ConnectivityService startup failed: $e');
+    debugPrintStack(stackTrace: stack);
+  }
+
   runApp(const SaveToPlantApp());
 }
+
 
 class SaveToPlantApp extends StatelessWidget {
   const SaveToPlantApp({super.key});
@@ -38,6 +50,8 @@ class SaveToPlantApp extends StatelessWidget {
         scaffoldBackgroundColor: surfaceTint,
       ),
 
+      //home: const _WithConnectivityBanner(child: LoginPage()),
+      
       home: const _WithConnectivityBanner(child: LoginPage()),
 
       routes: {
@@ -129,7 +143,7 @@ class _WithConnectivityBannerState
                         ),
                         TextButton.icon(
                           onPressed: () async {
-                            final ok = await InternetConnectionChecker()
+                            final ok = await InternetConnectionChecker.instance
                                 .hasConnection;
                             if (!mounted) return;
                             final text =

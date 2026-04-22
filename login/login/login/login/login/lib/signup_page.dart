@@ -961,8 +961,10 @@ class _SignupPageState extends State<SignupPage> {
                               children: [
                                 
                                 DropdownSearch<PhoneRegion>(
-                                  items: (filter, loadProps) => _regions,
                                   selectedItem: _selectedRegion,
+
+                                  // ✅ items must be a List
+                                  items: _regions,
 
                                   compareFn: (a, b) => a.iso2 == b.iso2,
 
@@ -972,18 +974,17 @@ class _SignupPageState extends State<SignupPage> {
                                     return '${flag.isNotEmpty ? '$flag ' : ''}${r.name} ($pretty)';
                                   },
 
-                                  decoratorProps: DropDownDecoratorProps(
-                                    decoration: InputDecoration(
-                                      labelText: 'Country',
-                                      prefixIcon: const Icon(Icons.flag_outlined),
-                                      helperText: _regionsError,
-                                      filled: true,
-                                      fillColor: theme.colorScheme.surface,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                  ),
+                                  // ✅ search/filter logic goes here
+                                  asyncItems: (String filter) async {
+                                    if (filter.isEmpty) return _regions;
+
+                                    final f = filter.toLowerCase();
+                                    return _regions.where((r) {
+                                      return r.name.toLowerCase().contains(f) ||
+                                            r.iso2.toLowerCase().contains(f) ||
+                                            r.code.contains(f);
+                                    }).toList();
+                                  },
 
                                   popupProps: const PopupProps.menu(
                                     showSearchBox: true,
@@ -994,25 +995,34 @@ class _SignupPageState extends State<SignupPage> {
                                     ),
                                   ),
 
+                                  // ✅ renamed correctly
+                                  dropdownDecoratorProps: DropDownDecoratorProps(
+                                    dropdownSearchDecoration: InputDecoration(
+                                      labelText: 'Country',
+                                      prefixIcon: const Icon(Icons.flag_outlined),
+                                      helperText: _regionsError,
+                                      filled: true,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+
                                   validator: (r) {
                                     if (_idType != IdentifierType.phone) return null;
                                     return r == null ? 'Choose a country' : null;
                                   },
 
-                                  
                                   onChanged: (r) {
                                     setState(() {
                                       _selectedRegion = r;
                                       if (r != null) {
                                         _countryCodeCtrl.text = r.code;
                                         _identifierCtrl.clear();
-
-                                        // ✅ LOG PHONE ISO (ISO‑2)
-                                        debugPrint('[REGIONS] Selected ISO2 | ${r.iso2}');
+                                        debugPrint('[REGIONS] Selected ISO2 ${r.iso2}');
                                       }
                                     });
                                   },
-
                                 ),
 
                                 const SizedBox(height: 8),

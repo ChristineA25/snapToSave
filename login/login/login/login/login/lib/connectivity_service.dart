@@ -25,7 +25,8 @@ class ConnectivityService {
   /// Start listening; call this early (e.g., before runApp).
   Future<void> start() async {
     // Initial reachability snapshot
-    final hasInternet = await InternetConnectionChecker().hasConnection;
+    final hasInternet =
+    await InternetConnectionChecker.instance.hasConnection;
     _set(hasInternet ? NetworkStatus.online : NetworkStatus.offline);
 
     // 1) Listen to OS connectivity changes (now List<ConnectivityResult> in v6)
@@ -40,13 +41,14 @@ class ConnectivityService {
       }
 
       // Confirm real internet (handles captive portals / no-route cases)
-      final ok = await InternetConnectionChecker().hasConnection;
+      final ok =
+    await InternetConnectionChecker.instance.hasConnection;
       _set(ok ? NetworkStatus.online : NetworkStatus.offline);
     });
 
     // 2) Also listen to reachability stream (more responsive on flaky networks)
     _internetSub =
-        InternetConnectionChecker().onStatusChange.listen((status) {
+        InternetConnectionChecker.instance.onStatusChange.listen((status) {
       final ok = status == InternetConnectionStatus.connected;
       _set(ok ? NetworkStatus.online : NetworkStatus.offline);
     });

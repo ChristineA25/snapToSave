@@ -63,7 +63,7 @@ import 'map_picker/map_search_screen.dart';
 import 'form_validators.dart';
 import 'utils/shop_normalizer.dart' as sn;
 
-import 'services/item_input_service.dart';     // <-- ADD THIS
+import 'services/item_input_service.dart'; // <-- ADD THIS
 
 // ADD with other imports
 import 'services/chain_shop_service.dart';
@@ -76,14 +76,15 @@ class CaptureAndRecognizePage extends StatefulWidget {
   const CaptureAndRecognizePage({
     super.key,
     required this.title,
-    required this.userId,     // NEW
+    required this.userId, // NEW
   });
 
   final String title;
-  final String userId;        // NEW
+  final String userId; // NEW
 
   @override
-  State<CaptureAndRecognizePage> createState() => _CaptureAndRecognizePageState();
+  State<CaptureAndRecognizePage> createState() =>
+      _CaptureAndRecognizePageState();
 }
 
 // Custom user column model
@@ -127,7 +128,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
   final Map<int, String> _rowChannels = {};
   final Map<int, String> _rowSources = {};
   final Map<int, String> _rowItemIds = {}; // resolved product ID
-  final Map<int, String> _rowQty = {}; // quantity number (integer/decimal as text)
+  final Map<int, String> _rowQty =
+      {}; // quantity number (integer/decimal as text)
   final Map<int, String> _rowQtyUnit = {}; // quantity unit
   final Map<int, bool> _rowDiscount = {}; // discount on/off
   final Map<int, String> _rowFeatures = {}; // feature entered by user
@@ -189,7 +191,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
   // ---------------------------------------------------------------------------
   static const String _gPlacesApiKey =
       String.fromEnvironment('G_PLACES_API_KEY', defaultValue: '');
-  static const String _baseUrl = 'https://nodejs-production-53a4.up.railway.app/';
+  static const String _baseUrl =
+      'https://nodejs-production-53a4.up.railway.app/';
 
   final _brandService = BrandService(_baseUrl);
   final _itemService = ItemService(_baseUrl);
@@ -199,7 +202,7 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
 
   // NEW: Price Service
   final _priceService = PriceService(_baseUrl); // uses /api/prices endpoints
-  final _itemInputService = ItemInputService(_baseUrl);   // <-- ADD THIS
+  final _itemInputService = ItemInputService(_baseUrl); // <-- ADD THIS
 
   // ADD with other services (uses same _baseUrl)  [1](https://uweacuk-my.sharepoint.com/personal/ka4_au_live_uwe_ac_uk/Documents/Microsoft%20Copilot%20Chat%20Files/form_validators.dart)
   final _chainShopService = ChainShopService(_baseUrl);
@@ -254,7 +257,6 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       ),
     );
   }
-
 
   // Quantity preview cache per row
   final Map<int, List<String>> _rowQtyPreview = {};
@@ -364,7 +366,7 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       });
     }
   }
-  
+
   // ------------------------------ CATEGORY DROPDOWN LOADER (UPDATED) --------------------
   Future<void> _loadCategoryOptions() async {
     if (mounted) setState(() => _categoryLoadError = null);
@@ -406,7 +408,11 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       ]);
 
       // Merge: existing choices already present in the UI + fetched tokens
-      final merged = <String>{..._categoryOptions, ...results[0], ...results[1]};
+      final merged = <String>{
+        ..._categoryOptions,
+        ...results[0],
+        ...results[1]
+      };
 
       // Sort case-insensitively but keep original token text for display
       final list = merged.toList()
@@ -525,7 +531,7 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       }
       // Always load shop options if empty
       if (_shopOptions.isEmpty) futures.add(_loadShopOptions());
-      if (_categoryOptions.isEmpty) futures.add(_loadCategoryOptions()); 
+      if (_categoryOptions.isEmpty) futures.add(_loadCategoryOptions());
       await Future.wait(futures);
 
       // IMPORTANT: If there is no photo (manual entry), mirror the "textless" richness
@@ -730,7 +736,6 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
         _rowShopLat.clear();
         _rowShopLng.clear();
 
-
         _pricesCache = null;
         _aggOcrCache = null;
       });
@@ -755,7 +760,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
   Future<List<String>> _placesTextSearchDisplayNames(String query) async {
     if (_gPlacesApiKey.isEmpty) return const <String>[];
     try {
-      final url = Uri.parse('https://places.googleapis.com/v1/places:searchText');
+      final url =
+          Uri.parse('https://places.googleapis.com/v1/places:searchText');
       final resp = await http.post(
         url,
         headers: {
@@ -771,7 +777,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
         final map = jsonDecode(resp.body) as Map<String, dynamic>;
         final List places = (map['places'] ?? []) as List;
         return places
-            .map((p) => (((p as Map)['displayName'] ?? {}) as Map)['text'] ?? '')
+            .map(
+                (p) => (((p as Map)['displayName'] ?? {}) as Map)['text'] ?? '')
             .map((s) => s.toString())
             .where((s) => s.isNotEmpty)
             .toList();
@@ -815,7 +822,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       toks.removeLast();
       final probe = toks.join(' ');
       final names = await _placesTextSearchDisplayNames(probe);
-      final score = names.isNotEmpty ? _prefixMatchScore(probe, names.first) : 0.0;
+      final score =
+          names.isNotEmpty ? _prefixMatchScore(probe, names.first) : 0.0;
       // If score drops noticeably vs the previous probe, stop and keep the last best.
       if (score + 0.15 < prevScore) {
         break;
@@ -835,7 +843,9 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     final rawName = place.name;
     final addr = place.formattedAddress.isNotEmpty
         ? place.formattedAddress
-        : (place.postcode != null ? '${place.name}, ${place.postcode}' : place.name);
+        : (place.postcode != null
+            ? '${place.name}, ${place.postcode}'
+            : place.name);
 
     // 1) Save raw first (so UI doesn't flicker)
     setState(() {
@@ -862,7 +872,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       }
     });
 
-    debugPrint('Row ${index + 1}: Picked "$rawName" -> Original brand "$original"');
+    debugPrint(
+        'Row ${index + 1}: Picked "$rawName" -> Original brand "$original"');
     print('Row ${index + 1}: Original shop name: $original');
   }
 
@@ -943,7 +954,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     return norm;
   }
 
-  Set<String> _tokens(String s) => _normalize(s).split(' ').where((e) => e.isNotEmpty).toSet();
+  Set<String> _tokens(String s) =>
+      _normalize(s).split(' ').where((e) => e.isNotEmpty).toSet();
 
   // ------------------------------ PRICE EXTRACTION ----------------------------
   static final RegExp _priceRe = RegExp(
@@ -1008,7 +1020,6 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     return out.toList();
   }
 
-  
   // ------------------------------ RESOLVER FLOW -------------------------------
   Future<Map<String, dynamic>> _resolveAgainstServer({
     required String brand,
@@ -1070,7 +1081,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       final map = jsonDecode(resp.body) as Map<String, dynamic>;
       return map;
     }
-    throw Exception('POST /shops/add failed (${resp.statusCode}): ${resp.body}');
+    throw Exception(
+        'POST /shops/add failed (${resp.statusCode}): ${resp.body}');
   }
 
   // ✅ NEW: item-only resolver (brand optional)
@@ -1337,10 +1349,10 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       if (brand.isEmpty) {
         result = await _resolveByItemOnly(item: item); // read-only
       } else {
-        result = await _resolveAgainstServer(brand: brand, item: item); // read-only
+        result =
+            await _resolveAgainstServer(brand: brand, item: item); // read-only
       }
-      final cands =
-          (result['candidates'] as List).cast<Map<String, dynamic>>();
+      final cands = (result['candidates'] as List).cast<Map<String, dynamic>>();
       final preview = <String>[];
       for (final c in cands) {
         final q = (c['quantity'] ?? '').toString().trim();
@@ -1362,8 +1374,10 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
 
   // ======================= CUSTOM CATEGORY INPUT =======================
   // Add this near your other "_promptForCustom..." dialogs
-  Future<String?> _promptForCustomCategory(BuildContext ctx, int rowIndex) async {
-    final controller = TextEditingController(text: _rowCategories[rowIndex] ?? '');
+  Future<String?> _promptForCustomCategory(
+      BuildContext ctx, int rowIndex) async {
+    final controller =
+        TextEditingController(text: _rowCategories[rowIndex] ?? '');
     String? error;
 
     return showDialog<String>(
@@ -1375,26 +1389,22 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Enter custom category", style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text("Enter custom category",
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextField(
                 controller: controller,
                 maxLength: FormValidators.kMaxTextLength,
-                
-                
                 decoration: InputDecoration(
-                      labelText: 'Price (in £)',
-                      prefixText: '£',  // 👈 NEW
-                      errorText: error,
-                    ),
-
-
+                  labelText: 'Custom Category',
+                  errorText: error,
+                ),
                 onSubmitted: (_) {
                   final v = controller.text.trim();
                   String? err;
                   if (v.isEmpty) err = "Required";
                   if (FormValidators.exceedsMaxLength(v)) {
-                    err = "Too long (max ${FormValidators.kMaxTextLength})";
+                    err = "Too long (max ormValidators.kMaxTextLength})";
                   }
                   if (err != null) {
                     setDlg(() => error = err);
@@ -1406,7 +1416,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(d), child: const Text("Cancel")),
+            TextButton(
+                onPressed: () => Navigator.pop(d), child: const Text("Cancel")),
             ElevatedButton(
               child: const Text("Save"),
               onPressed: () {
@@ -1416,7 +1427,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
                   return;
                 }
                 if (FormValidators.exceedsMaxLength(v)) {
-                  setDlg(() => error = "Too long (max ${FormValidators.kMaxTextLength})");
+                  setDlg(() => error =
+                      "Too long (max ${FormValidators.kMaxTextLength})");
                   return;
                 }
                 Navigator.pop(d, v);
@@ -1427,7 +1439,6 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       ),
     );
   }
-
 
   Future<String?> _promptForCustomBrand(BuildContext ctx, int rowIndex) async {
     // Pre-fill with whatever the row currently has (brand/source)
@@ -1487,8 +1498,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
                   return;
                 }
                 if (FormValidators.exceedsMaxLength(v)) {
-                  setDlg(
-                      () => error = 'Too long (max ${FormValidators.kMaxTextLength})');
+                  setDlg(() => error =
+                      'Too long (max ${FormValidators.kMaxTextLength})');
                   return;
                 }
                 Navigator.pop(d, v);
@@ -1514,7 +1525,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Enter item', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('Enter item',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextField(
                 controller: controller,
@@ -1527,7 +1539,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () {
                 final v = controller.text.trim();
@@ -1536,8 +1549,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
                   return;
                 }
                 if (FormValidators.exceedsMaxLength(v)) {
-                  setDlg(
-                      () => error = 'Too long (max ${FormValidators.kMaxTextLength})');
+                  setDlg(() => error =
+                      'Too long (max ${FormValidators.kMaxTextLength})');
                   return;
                 }
                 Navigator.pop(d, v);
@@ -1552,14 +1565,16 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
   }
 
   Future<String?> _promptForFeature(BuildContext context, int rowIndex) async {
-    final controller = TextEditingController(text: _rowFeatures[rowIndex] ?? '');
+    final controller =
+        TextEditingController(text: _rowFeatures[rowIndex] ?? '');
     String? error;
     final result = await showDialog<String>(
       context: context,
       builder: (d) => StatefulBuilder(
         builder: (context, setDlg) => AlertDialog(
           // Help the dialog reserve space when keyboard is up (M3 tighter layout)
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
           // Keep your nice row context banner
           title: Text(_rowContextLine(rowIndex)),
@@ -1608,7 +1623,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
               onPressed: () {
                 final v = controller.text.trim();
                 if (FormValidators.exceedsMaxLength(v)) {
-                  setDlg(() => error = 'Too long (max ${FormValidators.kMaxTextLength})');
+                  setDlg(() => error =
+                      'Too long (max ${FormValidators.kMaxTextLength})');
                   return;
                 }
                 Navigator.pop(d, v);
@@ -1638,16 +1654,20 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Enter price', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('Enter price',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextField(
                 controller: controller,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true), // Ensures numeric keyboard
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true), // Ensures numeric keyboard
                 maxLength: FormValidators.kMaxTextLength,
                 decoration: InputDecoration(
                   labelText: 'Price (in £)',
                   prefixText: '£ ', // 👈 Add this line to show the pound sign
-                  prefixStyle: const TextStyle(fontWeight: FontWeight.bold), // Optional: makes the £ bold
+                  prefixStyle: const TextStyle(
+                      fontWeight:
+                          FontWeight.bold), // Optional: makes the £ bold
                   hintText: '0.00',
                   errorText: error,
                 ),
@@ -1655,7 +1675,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () {
                 final v = controller.text.trim();
@@ -1683,15 +1704,20 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     return showDialog<bool>(
       context: ctx,
       builder: (d) => AlertDialog(
-        title: Text(_rowContextLine(0)), // shows a header; row num doesn't matter here
+        title: Text(
+            _rowContextLine(0)), // shows a header; row num doesn't matter here
         content: Text(
           display.isNotEmpty
               ? 'We found an exact match for:\n$display\n\nUse this product?'
               : 'We found an exact match.\nUse this product?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('No')),
-          ElevatedButton(onPressed: () => Navigator.pop(d, true), child: const Text('Yes')),
+          TextButton(
+              onPressed: () => Navigator.pop(d, false),
+              child: const Text('No')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(d, true),
+              child: const Text('Yes')),
         ],
       ),
     );
@@ -1970,8 +1996,9 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     Map<String, dynamic> rowItem,
     List<String> options,
   ) {
-    final String rowText =
-        rowItem['type'] == 'text' ? ((rowItem['description'] ?? '').toString()) : '';
+    final String rowText = rowItem['type'] == 'text'
+        ? ((rowItem['description'] ?? '').toString())
+        : '';
     final String aggText = _aggregateOcrText();
     final withScores = options.map((s) {
       final rowSc = _scoreOptionAgainstText(s, rowText);
@@ -1990,8 +2017,9 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     Map<String, dynamic> rowItem,
     List<String> options,
   ) {
-    final String rowText =
-        rowItem['type'] == 'text' ? ((rowItem['description'] ?? '').toString()) : '';
+    final String rowText = rowItem['type'] == 'text'
+        ? ((rowItem['description'] ?? '').toString())
+        : '';
     final String aggText = _aggOcrCache ??= _aggregateOcrText();
     final bool textless = !_hasText();
     final bool goodsNoReceipt = _hasText() && !_looksLikeReceipt();
@@ -2016,7 +2044,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     final withScores = options.map((s) {
       final cSc = colorScore(s);
       final oSc = ocrScore(s);
-      final total = (textless || goodsNoReceipt) ? (cSc * 3 + oSc) : ocrScore(s);
+      final total =
+          (textless || goodsNoReceipt) ? (cSc * 3 + oSc) : ocrScore(s);
       return MapEntry(s, total);
     }).toList();
 
@@ -2160,44 +2189,48 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
 
       return DropdownSearch<String>(
         selectedItem: current.isNotEmpty ? current : null,
-
-        // Searchable list
-        items: (filter, _) {
+        asyncItems: (String filter) async {
           final f = filter.toLowerCase();
-          return ranked
-              .where((b) => b.toLowerCase().contains(f))
-              .toList()
-            ..insert(0, '__custom__');
+          final filtered =
+              ranked.where((b) => b.toLowerCase().contains(f)).toList();
+
+          return [
+            '__custom__',
+            ...filtered,
+          ];
         },
-
-        compareFn: (a, b) => a == b,
-
         itemAsString: (b) => b == '__custom__' ? 'Custom…' : b,
-
+        compareFn: (a, b) => a == b,
         onChanged: (val) async {
           if (val == null) return;
 
+          // Custom brand
           if (val == '__custom__') {
             final entered = await _promptForCustomBrand(context, index);
             if (entered != null && entered.trim().isNotEmpty) {
               final vv = entered.trim();
-
-              // reuse existing brand if it already exists
               final existing = _findExistingBrand(vv);
-              setState(() => _rowBrands[index] = existing ?? vv);
 
-              // mark for saving later
+              setState(() {
+                _rowBrands[index] = existing ?? vv;
+              });
+
               _pendingShopsToSave.add(existing ?? vv);
             }
             return;
           }
 
-          setState(() => _rowBrands[index] = val);
-          if (val.trim().isNotEmpty) {
-            _pendingShopsToSave.add(val.trim());
-          }
-        },
+          // Normal brand selection
+          setState(() {
+            _rowBrands[index] = val;
+            // ✅ optional: clear item SELECTION only
+            _rowItems.remove(index);
+          });
 
+          _pendingShopsToSave.add(val.trim());
+
+          // ✅ DO NOT reload item options
+        },
         popupProps: const PopupProps.menu(
           showSearchBox: true,
           searchFieldProps: TextFieldProps(
@@ -2206,11 +2239,10 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
             ),
           ),
         ),
-
-        decoratorProps: DropDownDecoratorProps(
-          decoration: InputDecoration(
+        dropdownDecoratorProps: const DropDownDecoratorProps(
+          dropdownSearchDecoration: InputDecoration(
             labelText: 'Brand',
-            prefixIcon: const Icon(Icons.store_outlined),
+            prefixIcon: Icon(Icons.store_outlined),
             border: OutlineInputBorder(),
           ),
         ),
@@ -2220,7 +2252,7 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     // ---------------- ITEM (Searchable) ----------------
     final itemField = Builder(builder: (context) {
       if (_itemOptions.isEmpty && _optionsBusy) return _buildLoadingStub();
-      if (_itemOptions.isEmpty && ! _optionsBusy) {
+      if (_itemOptions.isEmpty && !_optionsBusy) {
         return _buildEmptyOptionsHint('item');
       }
 
@@ -2229,141 +2261,133 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
 
       return DropdownSearch<String>(
         selectedItem: current.isNotEmpty ? current : null,
-
-        // SEARCHABLE LIST
-        items: (filter, _) {
+        asyncItems: (String filter) async {
           final f = filter.toLowerCase();
+          final filtered =
+              ranked.where((i) => i.toLowerCase().contains(f)).toList();
           return [
             '__custom__',
-            ...ranked.where((i) => i.toLowerCase().contains(f))
+            ...filtered,
           ];
         },
-
-        itemAsString: (v) => v == '__custom__' ? 'Custom…' : v,
-
+        itemAsString: (s) => s == '__custom__' ? 'Custom…' : s,
+        compareFn: (a, b) => a == b,
         onChanged: (val) async {
           if (val == null) return;
 
+          // ✅ Custom ITEM input
           if (val == '__custom__') {
             final entered = await _promptForCustomItem(context, index);
             if (entered != null && entered.trim().isNotEmpty) {
-              setState(() => _rowItems[index] = entered.trim());
-              _refreshQtyPreviewForRow(index);
+              setState(() {
+                _rowItems[index] = entered.trim();
+                _rowItemIds.remove(index); // force re-resolve
+              });
             }
             return;
           }
 
+          // ✅ Normal item selection
           setState(() {
             _rowItems[index] = val;
+            _rowItemIds.remove(index); // force re-resolve
           });
-
-          _refreshQtyPreviewForRow(index);
+          // Removed: await _tryResolveItemForRow(index);
         },
-
         popupProps: const PopupProps.menu(
           showSearchBox: true,
           searchFieldProps: TextFieldProps(
             decoration: InputDecoration(
-              hintText: "Search item...",
+              hintText: 'Search item...',
             ),
           ),
         ),
-
-        decoratorProps: DropDownDecoratorProps(
-          decoration: InputDecoration(
-            labelText: "Item",
+        dropdownDecoratorProps: const DropDownDecoratorProps(
+          dropdownSearchDecoration: InputDecoration(
+            labelText: 'Item',
+            prefixIcon: Icon(Icons.shopping_basket_outlined),
             border: OutlineInputBorder(),
           ),
         ),
       );
     });
 
-  // -------------------- CATEGORY (FIXED: searchable + no duplicates) --------------------
-  final categoryField = Builder(builder: (context) {
-    if (_categoryOptions.isEmpty && _optionsBusy) return _buildLoadingStub();
-    if (_categoryLoadError != null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MaterialBanner(
-            content: Text(_categoryLoadError!),
-            leading: const Icon(Icons.error_outline, color: Colors.red),
-            actions: [
-              TextButton.icon(
-                onPressed: _refreshAllDropdowns,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          _buildEmptyOptionsHint('category'),
-        ],
-      );
-    }
+    // -------------------- CATEGORY (FIXED: searchable + no duplicates) --------------------
+    final categoryField = Builder(builder: (context) {
+      if (_categoryOptions.isEmpty && _optionsBusy) return _buildLoadingStub();
+      if (_categoryLoadError != null) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MaterialBanner(
+              content: Text(_categoryLoadError!),
+              leading: const Icon(Icons.error_outline, color: Colors.red),
+              actions: [
+                TextButton.icon(
+                  onPressed: _refreshAllDropdowns,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            _buildEmptyOptionsHint('category'),
+          ],
+        );
+      }
 
-    String norm(String s) => s.trim().toLowerCase();
+      String norm(String s) => s.trim().toLowerCase();
 
-    final currentRaw = _rowCategories[index] ?? "";
-    final current = norm(currentRaw);
+      final currentRaw = _rowCategories[index] ?? "";
+      final current = norm(currentRaw);
 
-    final ranked = _categoryOptions.toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final ranked = _categoryOptions.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
-    return DropdownSearch<String>(
-      selectedItem: current.isNotEmpty ? currentRaw : null,
+      return DropdownSearch<String>(
+        selectedItem: current.isNotEmpty ? current : null,
+        asyncItems: (String filter) async {
+          final f = filter.toLowerCase();
+          final filtered =
+              ranked.where((b) => b.toLowerCase().contains(f)).toList();
 
-      // SEARCHABLE LIST
-      items: (filter, _) {
-        final f = filter.toLowerCase();
-        final list = ranked.where((c) => c.toLowerCase().contains(f)).toList();
-        return [
-          "__clear__",
-          "__custom__",
-          ...list,
-        ];
-      },
+          return [
+            '__custom__',
+            ...filtered,
+          ];
+        },
+        itemAsString: (b) => b == '__custom__' ? 'Custom…' : b,
+        compareFn: (a, b) => a == b,
+        onChanged: (val) async {
+          if (val == null) return;
 
-      itemAsString: (v) {
-        if (v == "__clear__") return "— None —";
-        if (v == "__custom__") return "Custom…";
-        return v;
-      },
-
-      onChanged: (val) async {
-        if (val == null) return;
-        if (val == "__clear__") {
-          setState(() => _rowCategories[index] = "");
-          return;
-        }
-        if (val == "__custom__") {
-          final entered = await _promptForCustomCategory(context, index);
-          if (entered != null && entered.trim().isNotEmpty) {
-            setState(() => _rowCategories[index] = norm(entered));
+          if (val == '__custom__') {
+            final entered = await _promptForCustomCategory(context, index);
+            if (entered != null && entered.trim().isNotEmpty) {
+              setState(() => _rowCategories[index] = entered.trim());
+            }
+            return;
           }
-          return;
-        }
 
-        setState(() => _rowCategories[index] = val);
-      },
-
-      popupProps: const PopupProps.menu(
-        showSearchBox: true,
-        searchFieldProps: TextFieldProps(
-          decoration: InputDecoration(hintText: "Search category..."),
+          setState(() => _rowCategories[index] = val);
+        },
+        popupProps: const PopupProps.menu(
+          showSearchBox: true,
+          searchFieldProps: TextFieldProps(
+            decoration: InputDecoration(
+              hintText: 'Search category...',
+            ),
+          ),
         ),
-      ),
-
-      decoratorProps: const DropDownDecoratorProps(
-        decoration: InputDecoration(
-          labelText: "Category",
-          border: OutlineInputBorder(),
+        dropdownDecoratorProps: const DropDownDecoratorProps(
+          dropdownSearchDecoration: InputDecoration(
+            labelText: 'Category',
+            prefixIcon: Icon(Icons.category_outlined),
+            border: OutlineInputBorder(),
+          ),
         ),
-      ),
-    );
-  });
-
-
+      );
+    });
 
     // ------------------ END CATEGORY (NEW) ------------------
 
@@ -2385,7 +2409,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
             flex: 3,
             child: TextFormField(
               initialValue: qtyText,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
               ],
@@ -2406,7 +2431,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
               items: _qtyUnits
                   .map((u) => DropdownMenuItem(value: u, child: Text(u)))
                   .toList(),
-              onChanged: (val) => setState(() => _rowQtyUnit[index] = val ?? ''),
+              onChanged: (val) =>
+                  setState(() => _rowQtyUnit[index] = val ?? ''),
               hint: const Text('Unit'),
               decoration: InputDecoration(
                 labelText: 'Unit',
@@ -2434,8 +2460,9 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     final priceField = Builder(builder: (context) {
       final options = _pricesCache ??= _extractNumbersFromText();
       final items = <DropdownMenuItem<String>>[
-        ...options.map((o) =>
-            DropdownMenuItem(value: o, child: Text(o, overflow: TextOverflow.ellipsis, maxLines: 1))),
+        ...options.map((o) => DropdownMenuItem(
+            value: o,
+            child: Text(o, overflow: TextOverflow.ellipsis, maxLines: 1))),
         const DropdownMenuItem(value: '__custom__', child: Text('Custom…')),
       ];
       final current = _rowPrices[index] ?? '';
@@ -2463,7 +2490,7 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
           }
         },
         decoration: InputDecoration(
-          labelText:  'Price (in £)',
+          labelText: 'Price (in £)',
           errorText: priceError,
         ),
       );
@@ -2482,7 +2509,9 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     final channelField = DropdownButtonFormField<String>(
       isExpanded: true,
       value: currentChannel.isNotEmpty ? currentChannel : null,
-      items: _channelOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+      items: _channelOptions
+          .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+          .toList(),
       onChanged: (val) {
         if (val == null) return;
         setState(() => _rowChannels[index] = val);
@@ -2524,7 +2553,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.indigo.shade50,
                     borderRadius: BorderRadius.circular(6),
@@ -2549,7 +2579,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
                 IconButton(
                   tooltip: 'Delete row',
                   onPressed: () => _deleteRow(index),
-                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  icon:
+                      const Icon(Icons.delete_outline, color: Colors.redAccent),
                 ),
               ],
             ),
@@ -2641,20 +2672,22 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
               ],
             ] else if (isOnline) ...[
               const SizedBox(height: 8),
-              
               Builder(builder: (context) {
                 final roots = sn.collapseToChainRoots(_shopOptions);
                 final ranked = _rankedSourcesForRow(rowItem, roots);
 
                 final currentRaw = _rowSources[index] ?? '';
-                final current = currentRaw.isNotEmpty ? sn.chainRoot(currentRaw) : '';
+                final current =
+                    currentRaw.isNotEmpty ? sn.chainRoot(currentRaw) : '';
 
                 final List<DropdownMenuItem<String>> items = [
-                  const DropdownMenuItem(value: '__custom__', child: Text('Custom…')),
+                  const DropdownMenuItem(
+                      value: '__custom__', child: Text('Custom…')),
                   ...ranked.map(
                     (s) => DropdownMenuItem(
                       value: s,
-                      child: Text(s, overflow: TextOverflow.ellipsis, maxLines: 1),
+                      child:
+                          Text(s, overflow: TextOverflow.ellipsis, maxLines: 1),
                     ),
                   ),
                 ];
@@ -2665,63 +2698,61 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
                     1,
                     DropdownMenuItem(
                       value: current,
-                      child: Text(current, overflow: TextOverflow.ellipsis, maxLines: 1),
+                      child: Text(current,
+                          overflow: TextOverflow.ellipsis, maxLines: 1),
                     ),
                   );
                 }
 
                 return DropdownSearch<String>(
                   selectedItem: current.isNotEmpty ? current : null,
-
-                  // SEARCHABLE LIST
-                  items: (filter, _) {
+                  asyncItems: (String filter) async {
                     final f = filter.toLowerCase();
+                    final filtered = ranked
+                        .where((b) => b.toLowerCase().contains(f))
+                        .toList();
+
                     return [
                       '__custom__',
-                      ...ranked.where((s) => s.toLowerCase().contains(f))
+                      ...filtered,
                     ];
                   },
-
-                  itemAsString: (v) => v == '__custom__' ? 'Custom…' : v,
-
+                  itemAsString: (b) => b == '__custom__' ? 'Custom…' : b,
+                  compareFn: (a, b) => a == b,
                   onChanged: (val) async {
                     if (val == null) return;
 
                     if (val == '__custom__') {
-                      final entered = await _promptForCustomBrand(context, index);
+                      final entered =
+                          await _promptForCustomBrand(context, index);
                       if (entered != null && entered.trim().isNotEmpty) {
-                        final vv = sn.chainRoot(entered.trim());
+                        final vv = entered.trim();
                         setState(() => _rowSources[index] = vv);
-                        if (vv.isNotEmpty) _pendingShopsToSave.add(vv);
+                        _pendingShopsToSave.add(vv);
                       }
                       return;
                     }
 
-                    final vv = sn.chainRoot(val);
-                    setState(() => _rowSources[index] = vv);
-                    if (vv.isNotEmpty) _pendingShopsToSave.add(vv);
+                    setState(() => _rowSources[index] = val);
+                    _pendingShopsToSave.add(val.trim());
                   },
-
                   popupProps: const PopupProps.menu(
                     showSearchBox: true,
                     searchFieldProps: TextFieldProps(
                       decoration: InputDecoration(
-                        hintText: 'Search source…',
+                        hintText: 'Search brand...',
                       ),
                     ),
                   ),
-
-                  decoratorProps: const DropDownDecoratorProps(
-                    decoration: InputDecoration(
-                      labelText: 'Source (online, choose the most relevant one)',
-                      prefixIcon: Icon(Icons.public_outlined),
+                  dropdownDecoratorProps: const DropDownDecoratorProps(
+                    dropdownSearchDecoration: InputDecoration(
+                      labelText: 'Source (online)',
+                      prefixIcon: Icon(Icons.store_outlined),
                       border: OutlineInputBorder(),
                     ),
                   ),
                 );
-
               })
-
             ],
 
             const SizedBox(height: 8),
@@ -2733,7 +2764,6 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
                   label: const Text('Add Row'),
                 ),
                 const SizedBox(width: 8),
-                
               ],
             ),
           ],
@@ -2797,7 +2827,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
         errors.add('Shop name too long (max ${FormValidators.kMaxTextLength})');
       }
       if (FormValidators.exceedsMaxLength(addr)) {
-        errors.add('Shop address too long (max ${FormValidators.kMaxTextLength})');
+        errors.add(
+            'Shop address too long (max ${FormValidators.kMaxTextLength})');
       }
     } else if (chan == 'Online') {
       final source = (_rowSources[index] ?? '').trim();
@@ -2815,8 +2846,9 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     Map<String, dynamic> rowItem,
     List<String> options,
   ) {
-    final String rowText =
-        rowItem['type'] == 'text' ? ((rowItem['description'] ?? '').toString()) : '';
+    final String rowText = rowItem['type'] == 'text'
+        ? ((rowItem['description'] ?? '').toString())
+        : '';
     final String aggText = _aggregateOcrText();
 
     final scored = options.map((s) {
@@ -2835,11 +2867,9 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     return scored.map((e) => e.key).toList();
   }
 
-
   // ----------------------------------- BUILD ---------------------------------
   @override
   Widget build(BuildContext context) {
-
     final bool showFormSection = _manualMode || _labels.isNotEmpty;
 
     return Scaffold(
@@ -2865,8 +2895,9 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
                       row['taken_at'] as int,
                     );
                     final labelsJson = row['labels_json'] as String?;
-                    final labels =
-                        labelsJson != null ? (jsonDecode(labelsJson) as List) : [];
+                    final labels = labelsJson != null
+                        ? (jsonDecode(labelsJson) as List)
+                        : [];
                     return ListTile(
                       leading: Image.file(
                         File(path),
@@ -2875,7 +2906,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
                         fit: BoxFit.cover,
                       ),
                       title: Text(p.basename(path)),
-                      subtitle: Text('${when.toLocal()} • ${labels.length} items'),
+                      subtitle:
+                          Text('${when.toLocal()} • ${labels.length} items'),
                       onTap: () async {
                         Navigator.pop(context);
                         final f = File(path);
@@ -2943,7 +2975,6 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
         children: [
           const SizedBox(height: 8),
 
-          // 👇 ADD THIS BLOCK HERE
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Text(
@@ -2954,7 +2985,6 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
               ),
             ),
           ),
-          // 👆 ADD THIS BLOCK HERE
 
           // Top controls
           Padding(
@@ -2981,7 +3011,6 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
                     label: const Text('Add Row'),
                   ),
                   const SizedBox(width: 8),
-                  
                 ],
               ),
             ),
@@ -2993,7 +3022,6 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
             ),
           const SizedBox(height: 16),
 
-          // Error banners
           if (_brandLoadError != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -3025,7 +3053,6 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
               ),
             ),
 
-          // Main content
           Expanded(
             child: SingleChildScrollView(
               child: Padding(
@@ -3043,7 +3070,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
                     ],
                     const Text(
                       'Item Input',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     if (showFormSection) _buildDynamicFormList(),
                     const SizedBox(height: 16),
@@ -3079,7 +3107,7 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
   }
 
   // (Continue in Part 3/3: helpers for submit & the full submit flow incl. price insert)
-  
+
   // ---------- Helpers to compose create payload for items (when no exact match)
   ItemCreatePayload? _buildCreatePayloadForRow(int i) {
     final item = (_rowItems[i] ?? '').trim();
@@ -3092,10 +3120,12 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
 
     return ItemCreatePayload(
       name: item,
-      brand: (_rowBrands[i] ?? '').trim().isEmpty ? null : _rowBrands[i]!.trim(),
+      brand:
+          (_rowBrands[i] ?? '').trim().isEmpty ? null : _rowBrands[i]!.trim(),
       quantity: '$qty$unit',
-      feature:
-          (_rowFeatures[i] ?? '').trim().isNotEmpty ? _rowFeatures[i]!.trim() : null,
+      feature: (_rowFeatures[i] ?? '').trim().isNotEmpty
+          ? _rowFeatures[i]!.trim()
+          : null,
       productColor: colors,
       picWebsite: null, // set later if you have a URL
     );
@@ -3119,8 +3149,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
   String _todayGmtDate() {
     final now = DateTime.now().toUtc();
     return '${now.year.toString().padLeft(4, '0')}-'
-           '${now.month.toString().padLeft(2, '0')}-'
-           '${now.day.toString().padLeft(2, '0')}';
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
   }
 
   String _displayablePriceLabel(int rowIdx, double price, bool discountOn) {
@@ -3131,8 +3161,9 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
   // REPLACE the old sync helper with this async one
   Future<String> _shopIdForRowAsync(int i) async {
     final isPhysical = ((_rowChannels[i] ?? '') == 'Physical');
-    final raw = isPhysical ? (_rowShopNames[i] ?? '').trim()
-                          : (_rowSources[i] ?? '').trim();
+    final raw = isPhysical
+        ? (_rowShopNames[i] ?? '').trim()
+        : (_rowSources[i] ?? '').trim();
 
     // 1) Normalize like the rest of your UI (keeps UX consistent)  [1](https://uweacuk-my.sharepoint.com/personal/ka4_au_live_uwe_ac_uk/Documents/Microsoft%20Copilot%20Chat%20Files/form_validators.dart)
     final root = sn.chainRoot(raw);
@@ -3178,8 +3209,10 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       MapEntry('Shop ID', shopId),
       MapEntry('Channel', channel),
       MapEntry('Date (GMT)', dateGmt),
-      MapEntry('Price (in £)', _displayablePriceLabel(rowIndex, priceValue, discountOn)),
-      if (shopAdd != null && shopAdd.isNotEmpty) MapEntry('Shop address', shopAdd),
+      MapEntry('Price (in £)',
+          _displayablePriceLabel(rowIndex, priceValue, discountOn)),
+      if (shopAdd != null && shopAdd.isNotEmpty)
+        MapEntry('Shop address', shopAdd),
     ];
 
     return showDialog<DiscountSummaryResult>(
@@ -3198,8 +3231,8 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
     required String priceId,
     required String itemId,
     required String category,
-    required String shopName,   // this is your chainShopID
-    required String createdAt,  // expected as 'YYYY-MM-DD HH:MM:SS' (UTC)
+    required String shopName, // this is your chainShopID
+    required String createdAt, // expected as 'YYYY-MM-DD HH:MM:SS' (UTC)
   }) async {
     try {
       final uri = Uri.parse('${_baseUrl}api/item-input/category');
@@ -3220,478 +3253,509 @@ class _CaptureAndRecognizePageState extends State<CaptureAndRecognizePage> {
       );
 
       if (resp.statusCode != 200) {
-        debugPrint('Failed to update category (HTTP ${resp.statusCode}): ${resp.body}');
+        debugPrint(
+            'Failed to update category (HTTP ${resp.statusCode}): ${resp.body}');
       }
     } catch (e) {
       debugPrint('Error updating category: $e');
     }
-  }  
-
-Future<void> _submitAndResolveAll() async {
-  if (_isBusy) return;
-  setState(() => _isBusy = true);
-
-  bool aborted = false;
-
-  // Local helper to stop cleanly (no writes)
-  Future<void> _stopEarly([String? toast]) async {
-    if (mounted && (toast?.isNotEmpty ?? false)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(toast!)),
-      );
-    }
-    return;
   }
 
-  // Local helper to generate a reasonably unique client id for the row insert
-  int _clientGeneratedId() {
-    final n = DateTime.now().microsecondsSinceEpoch % 1000000000;
-    return n.toInt();
-  }
+  Future<void> _submitAndResolveAll() async {
+    if (_isBusy) return;
+    setState(() => _isBusy = true);
 
-  try {
-    // 1) Validate all rows
-    final allErrors = <int, List<String>>{};
-    for (int i = 0; i < _labels.length; i++) {
-      final errs = await _validateRow(i);
-      if (errs.isNotEmpty) allErrors[i] = errs;
-    }
-    if (allErrors.isNotEmpty) {
-      if (!mounted) return;
-      final msg = StringBuffer();
-      allErrors.forEach((row, errs) {
-        msg.writeln(_rowContextLine(row));
-        for (final e in errs) {
-          msg.writeln(' • $e');
-        }
-        msg.writeln('');
-      });
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Please fix the following'),
-          content: SingleChildScrollView(child: Text(msg.toString())),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
-          ],
-        ),
-      );
-      return; // no writes
-    }
+    bool aborted = false;
 
-    // 2) Resolve across rows (READ-ONLY) — respects Cancel as abort
-    for (int i = 0; i < _labels.length; i++) {
-      final brand = (_rowBrands[i] ?? '').trim();
-      final item = (_rowItems[i] ?? '').trim();
-      final qtyT = (_rowQty[i] ?? '').trim();
-      final unit = (_rowQtyUnit[i] ?? '').trim();
-      if (item.isEmpty) continue;
-
-      double? qtyVal;
-      if (qtyT.isNotEmpty) qtyVal = double.tryParse(qtyT);
-
-      Map<String, dynamic> result;
-      if (brand.isEmpty) {
-        result = await _resolveByItemOnly(
-          item: item,
-          qtyValue: qtyVal,
-          qtyUnit: unit.isNotEmpty ? unit : null,
-        );
-      } else {
-        result = await _resolveAgainstServer(
-          brand: brand,
-          item: item,
-          qtyValue: qtyVal,
-          qtyUnit: unit.isNotEmpty ? unit : null,
+    // Local helper to stop cleanly (no writes)
+    Future<void> _stopEarly([String? toast]) async {
+      if (mounted && (toast?.isNotEmpty ?? false)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(toast!)),
         );
       }
+      return;
+    }
 
-      final exact = (result['exactId'] ?? '').toString();
-      final cands = (result['candidates'] as List).cast<Map<String, dynamic>>();
+    // Local helper to generate a reasonably unique client id for the row insert
+    int _clientGeneratedId() {
+      final n = DateTime.now().microsecondsSinceEpoch % 1000000000;
+      return n.toInt();
+    }
 
-      if (cands.isNotEmpty) {
-        final picked = await _showCandidateChooserSheet(
-          rowIndex: i,
-          candidates: cands,
+    try {
+      // 1) Validate all rows
+      final allErrors = <int, List<String>>{};
+      for (int i = 0; i < _labels.length; i++) {
+        final errs = await _validateRow(i);
+        if (errs.isNotEmpty) allErrors[i] = errs;
+      }
+      if (allErrors.isNotEmpty) {
+        if (!mounted) return;
+        final msg = StringBuffer();
+        allErrors.forEach((row, errs) {
+          msg.writeln(_rowContextLine(row));
+          for (final e in errs) {
+            msg.writeln(' • $e');
+          }
+          msg.writeln('');
+        });
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Please fix the following'),
+            content: SingleChildScrollView(child: Text(msg.toString())),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+            ],
+          ),
         );
-        // Treat Cancel as "abort whole submit"
-        if (picked == null) {
-          aborted = true;
-          await _stopEarly('Submission cancelled — nothing saved.');
-          return; // EARLY EXIT: no writes
+        return; // no writes
+      }
+
+      // 2) Resolve across rows (READ-ONLY) — respects Cancel as abort
+      for (int i = 0; i < _labels.length; i++) {
+        final brand = (_rowBrands[i] ?? '').trim();
+        final item = (_rowItems[i] ?? '').trim();
+        final qtyT = (_rowQty[i] ?? '').trim();
+        final unit = (_rowQtyUnit[i] ?? '').trim();
+        if (item.isEmpty) continue;
+
+        double? qtyVal;
+        if (qtyT.isNotEmpty) qtyVal = double.tryParse(qtyT);
+
+        Map<String, dynamic> result;
+        if (brand.isEmpty) {
+          result = await _resolveByItemOnly(
+            item: item,
+            qtyValue: qtyVal,
+            qtyUnit: unit.isNotEmpty ? unit : null,
+          );
+        } else {
+          result = await _resolveAgainstServer(
+            brand: brand,
+            item: item,
+            qtyValue: qtyVal,
+            qtyUnit: unit.isNotEmpty ? unit : null,
+          );
         }
-        if (picked['__no_match__'] == true) {
-          final feature = await _promptForFeature(context, i);
-          if (feature == null) {
+
+        final exact = (result['exactId'] ?? '').toString();
+        final cands =
+            (result['candidates'] as List).cast<Map<String, dynamic>>();
+
+        if (cands.isNotEmpty) {
+          final picked = await _showCandidateChooserSheet(
+            rowIndex: i,
+            candidates: cands,
+          );
+          // Treat Cancel as "abort whole submit"
+          if (picked == null) {
             aborted = true;
             await _stopEarly('Submission cancelled — nothing saved.');
             return; // EARLY EXIT: no writes
           }
-          // If they did enter a feature, setter already happens in _promptForFeature
+          if (picked['__no_match__'] == true) {
+            final feature = await _promptForFeature(context, i);
+            if (feature == null) {
+              aborted = true;
+              await _stopEarly('Submission cancelled — nothing saved.');
+              return; // EARLY EXIT: no writes
+            }
+            // If they did enter a feature, setter already happens in _promptForFeature
+            continue;
+          }
+          setState(() {
+            _rowItemIds[i] = (picked['id'] ?? '').toString();
+            final q = (picked['quantity'] ?? '').toString();
+            final m = RegExp(r'^(\d+(?:\.\d+)?)([a-zA-Z]+)$')
+                .firstMatch(q.replaceAll(' ', ''));
+            if (m != null) {
+              _rowQty[i] = m.group(1)!;
+              _rowQtyUnit[i] = m.group(2)!.toLowerCase();
+            }
+            if (brand.isEmpty) {
+              _rowBrands[i] = (picked['brand'] ?? '').toString();
+            }
+          });
           continue;
         }
-        setState(() {
-          _rowItemIds[i] = (picked['id'] ?? '').toString();
-          final q = (picked['quantity'] ?? '').toString();
-          final m = RegExp(r'^(\d+(?:\.\d+)?)([a-zA-Z]+)$').firstMatch(q.replaceAll(' ', ''));
-          if (m != null) {
-            _rowQty[i] = m.group(1)!;
-            _rowQtyUnit[i] = m.group(2)!.toLowerCase();
-          }
-          if (brand.isEmpty) {
-            _rowBrands[i] = (picked['brand'] ?? '').toString();
-          }
-        });
-        continue;
-      }
 
-      if (exact.isNotEmpty) {
-        final ok = await _confirmUseExactMatch(context, brand: brand, item: item);
-        if (ok == true) {
-          _rowItemIds[i] = exact;
-        } else {
-          // user declined exact match; continue read-only stage
+        if (exact.isNotEmpty) {
+          final ok =
+              await _confirmUseExactMatch(context, brand: brand, item: item);
+          if (ok == true) {
+            _rowItemIds[i] = exact;
+          } else {
+            // user declined exact match; continue read-only stage
+          }
+          continue;
         }
-        continue;
+
+        // Nothing matched -> ask for feature
+        final feature = await _promptForFeature(context, i);
+        if (feature == null) {
+          aborted = true;
+          await _stopEarly('Submission cancelled — nothing saved.');
+          return; // EARLY EXIT: no writes
+        }
       }
 
-      // Nothing matched -> ask for feature
-      final feature = await _promptForFeature(context, i);
-      if (feature == null) {
-        aborted = true;
-        await _stopEarly('Submission cancelled — nothing saved.');
-        return; // EARLY EXIT: no writes
+      // If any cancel was detected above (defensive check)
+      if (aborted) return;
+
+      // 3) Create items (WRITE)
+      final indexedPayloads = <MapEntry<int, ItemCreatePayload>>[];
+      for (int i = 0; i < _labels.length; i++) {
+        final hasExisting = (_rowItemIds[i]?.isNotEmpty ?? false);
+        if (hasExisting) continue;
+        final p = _buildCreatePayloadForRow(i);
+        if (p != null) indexedPayloads.add(MapEntry(i, p));
       }
-    }
+      if (indexedPayloads.isNotEmpty) {
+        try {
+          final createdIds = await _submitService
+              .createItems(indexedPayloads.map((e) => e.value).toList());
+          for (int k = 0;
+              k < createdIds.length && k < indexedPayloads.length;
+              k++) {
+            final rowIndex = indexedPayloads[k].key;
+            final newId = (createdIds[k] ?? '').toString();
+            if (newId.isNotEmpty) {
+              _rowItemIds[rowIndex] = newId;
+            }
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content:
+                      Text('Created ${createdIds.length} item(s) on server')),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Server create failed: $e')),
+            );
+          }
+        }
+      }
 
-    // If any cancel was detected above (defensive check)
-    if (aborted) return;
-
-    // 3) Create items (WRITE)
-    final indexedPayloads = <MapEntry<int, ItemCreatePayload>>[];
-    for (int i = 0; i < _labels.length; i++) {
-      final hasExisting = (_rowItemIds[i]?.isNotEmpty ?? false);
-      if (hasExisting) continue;
-      final p = _buildCreatePayloadForRow(i);
-      if (p != null) indexedPayloads.add(MapEntry(i, p));
-    }
-    if (indexedPayloads.isNotEmpty) {
+      // 4) Persist any new shops (WRITE)
       try {
-        final createdIds =
-            await _submitService.createItems(indexedPayloads.map((e) => e.value).toList());
-        for (int k = 0; k < createdIds.length && k < indexedPayloads.length; k++) {
-          final rowIndex = indexedPayloads[k].key;
-          final newId = (createdIds[k] ?? '').toString();
-          if (newId.isNotEmpty) {
-            _rowItemIds[rowIndex] = newId;
+        final existing = await _shopService.fetchShops(); // List<String>
+        final toInsert = <String>{};
+
+        for (int i = 0; i < _labels.length; i++) {
+          final chan = (_rowChannels[i] ?? '');
+          if (chan == 'Physical') {
+            final name = (_rowShopNames[i] ?? '').trim();
+            if (name.isNotEmpty && !_containsIgnoreCase(existing, name)) {
+              toInsert.add(name);
+            }
+          } else if (chan == 'Online') {
+            final source = (_rowSources[i] ?? '').trim();
+            if (source.isNotEmpty && !_containsIgnoreCase(existing, source)) {
+              toInsert.add(source);
+            }
           }
         }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Created ${createdIds.length} item(s) on server')),
-          );
+
+        for (final s in _pendingShopsToSave) {
+          if (s.isNotEmpty && !_containsIgnoreCase(existing, s)) {
+            toInsert.add(s);
+          }
         }
+
+        for (final s in toInsert) {
+          try {
+            await _shopService.addShop(s);
+          } catch (_) {
+            // ignore duplicate/races
+          }
+        }
+
+        await _loadShopOptions();
+        _pendingShopsToSave.clear();
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Server create failed: $e')),
+            SnackBar(content: Text('Shop sync skipped: $e')),
           );
         }
       }
-    }
 
-    // 4) Persist any new shops (WRITE)
-    try {
-      final existing = await _shopService.fetchShops(); // List<String>
-      final toInsert = <String>{};
+      // 5) PRICE INSERTION (WRITE)
+      final String gmtDate = _todayGmtDate();
+      final List<PriceRow> toCreate = [];
+      final List<Map<String, dynamic>> pendingItemInputs = [];
 
       for (int i = 0; i < _labels.length; i++) {
-        final chan = (_rowChannels[i] ?? '');
-        if (chan == 'Physical') {
-          final name = (_rowShopNames[i] ?? '').trim();
-          if (name.isNotEmpty && !_containsIgnoreCase(existing, name)) {
-            toInsert.add(name);
-          }
-        } else if (chan == 'Online') {
-          final source = (_rowSources[i] ?? '').trim();
-          if (source.isNotEmpty && !_containsIgnoreCase(existing, source)) {
-            toInsert.add(source);
-          }
+        final itemId = (_rowItemIds[i] ?? '').trim();
+        if (itemId.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text('Row ${i + 1}: missing item ID, price not inserted.')),
+          );
+          continue;
         }
-      }
 
-      for (final s in _pendingShopsToSave) {
-        if (s.isNotEmpty && !_containsIgnoreCase(existing, s)) {
-          toInsert.add(s);
+        final channel = (_rowChannels[i] ?? '').trim();
+        if (channel.isEmpty) continue;
+
+        final shopId = await _shopIdForRowAsync(i);
+        if (shopId.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'Row ${i + 1}: missing shop/source, price not inserted.')),
+          );
+          continue;
         }
-      }
 
-      for (final s in toInsert) {
-        try {
-          await _shopService.addShop(s);
-        } catch (_) {
-          // ignore duplicate/races
+        final shopAdd = _shopAddressForRow(i);
+        final priceText = (_rowPrices[i] ?? '').trim();
+        final parsed = _gbpToDouble(priceText);
+        if (parsed == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Row ${i + 1}: invalid price, not inserted.')),
+          );
+          continue;
         }
-      }
 
-      await _loadShopOptions();
-      _pendingShopsToSave.clear();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Shop sync skipped: $e')),
-        );
-      }
-    }
-
-    // 5) PRICE INSERTION (WRITE)
-    final String gmtDate = _todayGmtDate();
-    final List<PriceRow> toCreate = [];
-    final List<Map<String, dynamic>> pendingItemInputs = [];
-
-    for (int i = 0; i < _labels.length; i++) {
-      final itemId = (_rowItemIds[i] ?? '').trim();
-      if (itemId.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Row ${i + 1}: missing item ID, price not inserted.')),
-        );
-        continue;
-      }
-
-      final channel = (_rowChannels[i] ?? '').trim();
-      if (channel.isEmpty) continue;
-
-      final shopId = await _shopIdForRowAsync(i);
-      if (shopId.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Row ${i + 1}: missing shop/source, price not inserted.')),
-        );
-        continue;
-      }
-
-      final shopAdd = _shopAddressForRow(i);
-      final priceText = (_rowPrices[i] ?? '').trim();
-      final parsed = _gbpToDouble(priceText);
-      if (parsed == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Row ${i + 1}: invalid price, not inserted.')),
-        );
-        continue;
-      }
-
-      final existing = await _priceService.findPrice(
-        itemID: itemId,
-        shopID: shopId,
-        channel: channel,
-        date: gmtDate,
-      );
-
-      final discountOn = _rowDiscount[i] ?? false;
-      final newNormal = discountOn ? null : parsed;
-      final newDiscount = discountOn ? parsed : null;
-      String? newCond;
-
-      if (discountOn) {
-        final confirm = await _confirmPriceForRow(
-          rowIndex: i,
-          itemId: itemId,
-          shopId: shopId,
+        final existing = await _priceService.findPrice(
+          itemID: itemId,
+          shopID: shopId,
           channel: channel,
-          dateGmt: gmtDate,
-          priceValue: parsed,
-          discountOn: discountOn,
-          shopAdd: shopAdd,
+          date: gmtDate,
         );
-        // Cancel only cancels this row’s price insert
-        if (confirm == null || confirm.confirmed == false) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Row ${i + 1}: price insertion cancelled.')),
+
+        final discountOn = _rowDiscount[i] ?? false;
+        final newNormal = discountOn ? null : parsed;
+        final newDiscount = discountOn ? parsed : null;
+        String? newCond;
+        DiscountSummaryResult? confirm;
+        if (discountOn) {
+          confirm = await _confirmPriceForRow(
+            rowIndex: i,
+            itemId: itemId,
+            shopId: shopId,
+            channel: channel,
+            dateGmt: gmtDate,
+            priceValue: parsed,
+            discountOn: discountOn,
+            shopAdd: shopAdd,
+          );
+          // Cancel only cancels this row’s price insert
+          if (confirm == null || confirm.confirmed == false) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text('Row ${i + 1}: price insertion cancelled.')),
+              );
+            }
+            continue;
+          }
+          newCond = (confirm.discountCond?.trim().isNotEmpty ?? false)
+              ? confirm.discountCond!.trim()
+              : null;
+        }
+
+        if (existing != null) {
+          final oldNormal = existing['normalPrice'] == null
+              ? null
+              : (existing['normalPrice'] as num).toDouble();
+          final oldDiscount = existing['discountPrice'] == null
+              ? null
+              : (existing['discountPrice'] as num).toDouble();
+          final oldCond = existing['discountCond']?.toString();
+
+          final changed = oldNormal != newNormal ||
+              oldDiscount != newDiscount ||
+              (oldCond ?? '') != (newCond ?? '');
+
+          if (changed) {
+            await _priceService.updatePrice(
+              id: (existing['id'] as num).toInt(),
+              normalPrice: newNormal,
+              discountPrice: newDiscount,
+              discountCond: newCond,
             );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text('Row ${i + 1}: existing price updated.')),
+              );
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Row ${i + 1}: no changes, skipped.')),
+              );
+            }
           }
           continue;
         }
-        newCond = (confirm.discountCond?.trim().isNotEmpty ?? false)
-            ? confirm.discountCond!.trim()
-            : null;
-      }
 
-      if (existing != null) {
-        final oldNormal =
-            existing['normalPrice'] == null ? null : (existing['normalPrice'] as num).toDouble();
-        final oldDiscount =
-            existing['discountPrice'] == null ? null : (existing['discountPrice'] as num).toDouble();
-        final oldCond = existing['discountCond']?.toString();
-
-        final changed =
-            oldNormal != newNormal || oldDiscount != newDiscount || (oldCond ?? '') != (newCond ?? '');
-
-        if (changed) {
-          await _priceService.updatePrice(
-            id: (existing['id'] as num).toInt(),
-            normalPrice: newNormal,
-            discountPrice: newDiscount,
-            discountCond: newCond,
+        // New row — confirm & add (only if not already confirmed above)
+        if (!discountOn) {
+          confirm = await _confirmPriceForRow(
+            rowIndex: i,
+            itemId: itemId,
+            shopId: shopId,
+            channel: channel,
+            dateGmt: gmtDate,
+            priceValue: parsed,
+            discountOn: discountOn,
+            shopAdd: shopAdd,
           );
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Row ${i + 1}: existing price updated.')),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Row ${i + 1}: no changes, skipped.')),
-            );
-          }
-        }
-        continue;
-      }
-
-      // New row — confirm & add
-      final confirm = await _confirmPriceForRow(
-        rowIndex: i,
-        itemId: itemId,
-        shopId: shopId,
-        channel: channel,
-        dateGmt: gmtDate,
-        priceValue: parsed,
-        discountOn: discountOn,
-        shopAdd: shopAdd,
-      );
-      if (confirm == null || confirm.confirmed == false) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Row ${i + 1}: price insertion cancelled.')),
-          );
-        }
-        continue;
-      }
-
-      final priceId = _clientGeneratedId();
-      final row = PriceRow(
-        id: priceId,
-        itemID: itemId,
-        shopID: shopId,
-        channel: channel,
-        date: gmtDate,
-        normalPrice: discountOn ? null : parsed,
-        discountPrice: discountOn ? parsed : null,
-        discountCond: discountOn
-            ? (confirm.discountCond?.trim().isNotEmpty == true
-                ? confirm.discountCond!.trim()
-                : null)
-            : null,
-        shopAdd: shopAdd,
-      );
-      toCreate.add(row);
-
-      int _parseItemCount(String? s) {
-        final v = int.tryParse((s ?? '1').trim());
-        return (v == null || v <= 0) ? 1 : v;
-      }
-
-      String _sizeWithUnit(int row) {
-        final qty = (_rowQty[row] ?? '').trim();
-        final unit = (_rowQtyUnit[row] ?? '').trim();
-        return '$qty$unit';
-      }
-
-      final itemCount = _parseItemCount(_rowItemCounts[i]);
-      final sizeWithUnit = _sizeWithUnit(i);
-
-      // Add a full payload for itemInput (INCLUDES rowIndex + createdAt)
-      final payload = <String, dynamic>{
-        'rowIndex': i, // <-- Needed for category lookup
-        'createdAt': DateTime.now().toUtc().toString().split('.')[0], // YYYY-MM-DD HH:MM:SS
-        'userID': widget.userId,
-        'brand': (_rowBrands[i] ?? '').trim().isNotEmpty ? _rowBrands[i]!.trim() : null,
-        'itemName': (_rowItems[i] ?? '').trim(),
-        'itemNo': itemCount,
-        'itemID': itemId,
-        'feature': (_rowFeatures[i] ?? '').trim().isNotEmpty ? _rowFeatures[i]!.trim() : null,
-        'quantity': sizeWithUnit,
-        'priceValue': parsed,
-        'priceID': priceId,
-        'discountApplied': discountOn ? 1 : 0,
-        'channel': channel.toLowerCase(),
-        'shop_name': (channel == 'Physical') ? (_rowShopNames[i] ?? '').trim() : (_rowSources[i] ?? '').trim(),
-        'shop_address': shopAdd,
-        'chainShopID': shopId,
-      }..removeWhere((k, v) => v == null);
-
-      pendingItemInputs.add(payload);
-      _debugShowItemInputPayload(payload);
-    }
-
-    if (toCreate.isNotEmpty) {
-      try {
-        final created = await _priceService.createBatch(toCreate);
-
-        // For each new price row, create the itemInput, then PATCH its category
-        for (final payload in pendingItemInputs) {
-          try {
-            final newItemInputId = await _itemInputService.create(payload);
+          if (confirm == null || confirm.confirmed == false) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('itemInput saved (id=$newItemInputId)')),
+                SnackBar(
+                    content: Text('Row ${i + 1}: price insertion cancelled.')),
               );
             }
-
-            // === CATEGORY PATCH (NEW) ===
-            final int rowIndex = payload['rowIndex'] as int;
-            final String? selectedCategory = _rowCategories[rowIndex];
-            if (selectedCategory != null && selectedCategory.isNotEmpty) {
-              await _updateItemCategory(
-                priceId: payload['priceID'].toString(),
-                itemId: payload['itemID'],
-                category: selectedCategory,
-                shopName: payload['chainShopID'], // server expects "chainShopID"
-                createdAt: payload['createdAt'],
-              );
-            }
-            // =============================
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('itemInput insert failed: $e')),
-              );
-            }
+            continue;
           }
         }
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Inserted $created price row(s).')),
-          );
+        final priceId = _clientGeneratedId();
+        final row = PriceRow(
+          id: priceId,
+          itemID: itemId,
+          shopID: shopId,
+          channel: channel,
+          date: gmtDate,
+          normalPrice: discountOn ? null : parsed,
+          discountPrice: discountOn ? parsed : null,
+          discountCond: discountOn
+              ? (confirm!.discountCond?.trim().isNotEmpty == true
+                  ? confirm!.discountCond!.trim()
+                  : null)
+              : null,
+          shopAdd: shopAdd,
+        );
+        toCreate.add(row);
+
+        int _parseItemCount(String? s) {
+          final v = int.tryParse((s ?? '1').trim());
+          return (v == null || v <= 0) ? 1 : v;
         }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Price insert failed: $e')),
-          );
+
+        String _sizeWithUnit(int row) {
+          final qty = (_rowQty[row] ?? '').trim();
+          final unit = (_rowQtyUnit[row] ?? '').trim();
+          return '$qty$unit';
+        }
+
+        final itemCount = _parseItemCount(_rowItemCounts[i]);
+        final sizeWithUnit = _sizeWithUnit(i);
+
+        // Add a full payload for itemInput (INCLUDES rowIndex + createdAt)
+        final payload = <String, dynamic>{
+          'rowIndex': i, // <-- Needed for category lookup
+          'createdAt': DateTime.now()
+              .toUtc()
+              .toString()
+              .split('.')[0], // YYYY-MM-DD HH:MM:SS
+          'userID': widget.userId,
+          'brand': (_rowBrands[i] ?? '').trim().isNotEmpty
+              ? _rowBrands[i]!.trim()
+              : null,
+          'itemName': (_rowItems[i] ?? '').trim(),
+          'itemNo': itemCount,
+          'itemID': itemId,
+          'feature': (_rowFeatures[i] ?? '').trim().isNotEmpty
+              ? _rowFeatures[i]!.trim()
+              : null,
+          'quantity': sizeWithUnit,
+          'priceValue': parsed,
+          'priceID': priceId,
+          'discountApplied': discountOn ? 1 : 0,
+          'channel': channel.toLowerCase(),
+          'shop_name': (channel == 'Physical')
+              ? (_rowShopNames[i] ?? '').trim()
+              : (_rowSources[i] ?? '').trim(),
+          'shop_address': shopAdd,
+          'chainShopID': shopId,
+        }..removeWhere((k, v) => v == null);
+
+        pendingItemInputs.add(payload);
+        _debugShowItemInputPayload(payload);
+      }
+
+      if (toCreate.isNotEmpty) {
+        try {
+          final created = await _priceService.createBatch(toCreate);
+
+          // For each new price row, create the itemInput, then PATCH its category
+          for (final payload in pendingItemInputs) {
+            try {
+              final newItemInputId = await _itemInputService.create(payload);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text('itemInput saved (id=$newItemInputId)')),
+                );
+              }
+
+              // === CATEGORY PATCH (NEW) ===
+              final int rowIndex = payload['rowIndex'] as int;
+              final String? selectedCategory = _rowCategories[rowIndex];
+              if (selectedCategory != null && selectedCategory.isNotEmpty) {
+                await _updateItemCategory(
+                  priceId: payload['priceID'].toString(),
+                  itemId: payload['itemID'],
+                  category: selectedCategory,
+                  shopName:
+                      payload['chainShopID'], // server expects "chainShopID"
+                  createdAt: payload['createdAt'],
+                );
+              }
+              // =============================
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('itemInput insert failed: $e')),
+                );
+              }
+            }
+          }
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Inserted $created price row(s).')),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Price insert failed: $e')),
+            );
+          }
         }
       }
-    }
 
-    if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BuyingHistoryPage(userId: widget.userId),
-      ),
-    );
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Submit failed: $e')),
-    );
-  } finally {
-    if (mounted) setState(() => _isBusy = false);
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BuyingHistoryPage(userId: widget.userId),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Submit failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
   }
-}
-
-
 }
 // (end of file)
 // -----------------------------------------------------------------------------
